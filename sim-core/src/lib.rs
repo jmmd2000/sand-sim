@@ -153,6 +153,31 @@ impl<'a> SimAPI<'a> {
         }
     }
 
+    /// Move cell into target if it's one of the allowed materials
+    /// Clears current cell if successful
+    #[inline]
+    pub fn try_move_into(&mut self, dx: i32, dy: i32, cell: Cell, allowed_materials: &[Material]) -> bool {
+        let target = self.get(dx, dy);
+        
+        // Check if target material is in the allowed list
+        if allowed_materials.contains(&target.material) {
+            // Store the target cell to put in current position
+            let mut target_cell = target;
+            target_cell.clock = self.sim.generation.wrapping_add(1);
+            
+            // Move our cell to target position
+            self.set(dx, dy, cell);
+            
+            // Put target cell in current position
+            let i = idx(self.sim.width, self.x, self.y);
+            self.sim.cells[i] = target_cell;
+            
+            true
+        } else {
+            false
+        }
+    }
+
     #[inline]
     pub fn rand_u32(&mut self) -> u32 {
         self.sim.rng_next()

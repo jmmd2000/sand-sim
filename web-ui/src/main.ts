@@ -81,7 +81,7 @@ function loop(now: number) {
   acc += tickElapsed;
 
   // Adjust this to taste - how many CA ticks per fixed step
-  const TICKS_PER_STEP = 3;
+  const TICKS_PER_STEP = 4;
 
   while (acc >= dt) {
     sim.step(TICKS_PER_STEP);

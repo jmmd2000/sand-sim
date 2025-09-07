@@ -52,7 +52,7 @@ fn update_sand(cell: Cell, mut api: SimAPI) {
         return;
     }
 
-    // diagonals
+    // If can't fall straight down, try diagonal falls
     let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
     if left_first {
         if api.try_move(-1, 1, cell) {
@@ -70,62 +70,130 @@ fn update_sand(cell: Cell, mut api: SimAPI) {
         }
     }
 
-    // swap with water below
-    let below = api.get(0, 1).material;
-    if below == Material::Water {
-        // move into water cell and push water up
-        // write sand below
-        api.set(0, 1, cell);
-
-        api.clear_here();
-        let mut water = Cell {
-            material: Material::Water,
-            ra: 0,
-            rb: 0,
-            clock: 0,
-        };
-        // stamp at current position
-        water.clock = api.generation().wrapping_add(1);
-        // set current cell to water
-        // we cannot write "here" through set, so do direct since we already cleared_here and set stamp
-        let i = super::idx(api.sim.width, api.x, api.y);
-        api.sim.cells[i] = water;
+    // try swap down if there is water below
+    if api.try_move_into(0, 1, cell, &[Material::Water]) {
         return;
+    }
+
+    // If can't fall diagonally, try to move into water
+    if left_first {
+        if api.try_move_into(-1, 1, cell, &[Material::Water]) {
+            return;
+        }
+        if api.try_move_into(1, 1, cell, &[Material::Water]) {
+            return;
+        }
+    } else {
+        if api.try_move_into(1, 1, cell, &[Material::Water]) {
+            return;
+        }
+        if api.try_move_into(-1, 1, cell, &[Material::Water]) {
+            return;
+        }
     }
 }
 
 fn update_water(cell: Cell, mut api: SimAPI) {
+    // Add some randomness to make water feel more viscous
+    if api.rand_u32() % 4 == 0 {
+        return; // 25% chance to not move this tick
+    }
+
     if api.try_move(0, 1, cell) {
         return;
     }
 
+    // Check if on the surface
+    let above = api.get(0, -1).material;
+    let is_surface = above == Material::Empty;
+
     let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
 
-    if left_first {
-        if api.try_move(-1, 1, cell) {
-            return;
-        }
-        if api.try_move(1, 1, cell) {
-            return;
-        }
-        if api.try_move(-1, 0, cell) {
-            return;
-        }
-        if api.try_move(1, 0, cell) {
-            return;
+    if is_surface {
+        // Surface water, prioritize horizontal flow (surface tension)
+        if left_first {
+            if api.try_move(-1, 0, cell) {
+                return;
+            }
+            if api.try_move(1, 0, cell) {
+                return;
+            }
+            if api.try_move(-1, 1, cell) {
+                return;
+            }
+            if api.try_move(1, 1, cell) {
+                return;
+            }
+        } else {
+            if api.try_move(1, 0, cell) {
+                return;
+            }
+            if api.try_move(-1, 0, cell) {
+                return;
+            }
+            if api.try_move(1, 1, cell) {
+                return;
+            }
+            if api.try_move(-1, 1, cell) {
+                return;
+            }
         }
     } else {
-        if api.try_move(1, 1, cell) {
-            return;
+        // Submerged water, try diagonal falls first
+        if left_first {
+            if api.try_move(-1, 1, cell) {
+                return;
+            }
+            if api.try_move(1, 1, cell) {
+                return;
+            }
+            if api.try_move(-1, 0, cell) {
+                return;
+            }
+            if api.try_move(1, 0, cell) {
+                return;
+            }
+        } else {
+            if api.try_move(1, 1, cell) {
+                return;
+            }
+            if api.try_move(-1, 1, cell) {
+                return;
+            }
+            if api.try_move(1, 0, cell) {
+                return;
+            }
+            if api.try_move(-1, 0, cell) {
+                return;
+            }
         }
-        if api.try_move(-1, 1, cell) {
-            return;
-        }
-        if api.try_move(1, 0, cell) {
-            return;
-        }
-        if api.try_move(-1, 0, cell) {
-            return;
+    }
+
+    // Check if in a pool (surrounded by water or walls)
+    let below = api.get(0, 1).material;
+    let left = api.get(-1, 0).material;
+    let right = api.get(1, 0).material;
+    
+    let is_in_pool = (below == Material::Wall || below == Material::Water) &&
+                     (left == Material::Wall || left == Material::Water) &&
+                     (right == Material::Wall || right == Material::Water);
+
+    // Only try horizontal moves if not in a pool
+    if !is_in_pool {
+        if left_first {
+            if api.try_move(-1, 0, cell) {
+                return;
+            }
+            if api.try_move(1, 0, cell) {
+                return;
+            }
+        } else {
+            if api.try_move(1, 0, cell) {
+                return;
+            }
+            if api.try_move(-1, 0, cell) {
+                return;
+            }
         }
     }
 }
