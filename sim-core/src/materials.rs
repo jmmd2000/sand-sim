@@ -1,74 +1,131 @@
-use crate::Simulation;
+use crate::{Cell, SimAPI};
 
-pub type MatID = u16;
-
-pub struct Material {
-    pub name: &'static str,
-    pub color: [u8; 4],                        // RGBA
-    pub update: fn(u32, u32, &mut Simulation), // How this material behaves
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Material {
+    Empty = 0,
+    Wall = 1,
+    Sand = 2,
+    Water = 3,
+    Stone = 4, // immovable solid
 }
 
-// Material IDs
-pub const EMPTY: MatID = 0;
-pub const SAND: MatID = 1;
-pub const WATER: MatID = 2;
-
-// Update functions
-fn update_empty(_x: u32, _y: u32, _sim: &mut Simulation) {
-    // Empty does nothing
+impl Material {
+    #[inline]
+    pub fn from_id(id: u8) -> Self {
+        match id {
+            1 => Material::Wall,
+            2 => Material::Sand,
+            3 => Material::Water,
+            4 => Material::Stone,
+            _ => Material::Empty,
+        }
+    }
+    #[inline]
+    pub fn id(self) -> u8 {
+        self as u8
+    }
 }
-#[rustfmt::skip]
-fn update_sand(x: u32, y: u32, sim: &mut Simulation) {
-    // try straight down
-    if sim.try_move(x, y, x, y + 1) {
+
+#[inline]
+pub fn color_of(s: Material) -> [u8; 4] {
+    match s {
+        Material::Empty => [0, 0, 0, 255],
+        Material::Wall => [120, 120, 120, 255],
+        Material::Stone => [90, 90, 90, 255],
+        Material::Sand => [216, 180, 90, 255],
+        Material::Water => [64, 120, 220, 255],
+    }
+}
+
+// Dispatcher for one cell
+pub fn update_cell(cell: Cell, mut api: SimAPI) {
+    match cell.material {
+        Material::Sand => update_sand(cell, api),
+        Material::Water => update_water(cell, api),
+        _ => { /* Wall, Stone, Empty - do nothing */ }
+    }
+}
+
+fn update_sand(cell: Cell, mut api: SimAPI) {
+    if api.try_move(0, 1, cell) {
         return;
     }
 
-    // flip diagonal preference based on position and frame
-    let right_first = ((x + y + sim.frame()) & 1) == 0;
-
-    if right_first {
-        if sim.try_move(x, y, x + 1, y + 1) {return;}
-        if sim.try_move(x, y, x.wrapping_sub(1), y + 1) {return;}
+    // diagonals
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
+    if left_first {
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 1, cell) {
+            return;
+        }
     } else {
-        if sim.try_move(x, y, x.wrapping_sub(1), y + 1) {return;}
-        if sim.try_move(x, y, x + 1, y + 1) {return;}
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
     }
 
-    // stay put
-    sim.stay(x, y);
+    // swap with water below
+    let below = api.get(0, 1).material;
+    if below == Material::Water {
+        // move into water cell and push water up
+        // write sand below
+        api.set(0, 1, cell);
+
+        api.clear_here();
+        let mut water = Cell {
+            material: Material::Water,
+            ra: 0,
+            rb: 0,
+            clock: 0,
+        };
+        // stamp at current position
+        water.clock = api.generation().wrapping_add(1);
+        // set current cell to water
+        // we cannot write "here" through set, so do direct since we already cleared_here and set stamp
+        let i = super::idx(api.sim.width, api.x, api.y);
+        api.sim.cells[i] = water;
+        return;
+    }
 }
 
-#[rustfmt::skip]
-fn update_water(x: u32, y: u32, sim: &mut Simulation) {
-    // try straight down
-    if sim.try_move(x, y, x, y + 1) {
+fn update_water(cell: Cell, mut api: SimAPI) {
+    if api.try_move(0, 1, cell) {
         return;
     }
 
-    // flip diagonal preference based on position and frame
-    let right_first = ((x + y + sim.frame()) & 1) == 0;
-    
-    if right_first {
-        if sim.try_move(x, y, x + 1, y + 1) { return; } // try down-right
-        if x > 0 && sim.try_move(x, y, x.wrapping_sub(1), y + 1) { return; } // try down-left
-        if sim.try_move(x, y, x + 1, y){ return; } // try right
-        if x > 0 && sim.try_move(x, y, x.wrapping_sub(1), y) { return; } // try left
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
+
+    if left_first {
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 0, cell) {
+            return;
+        }
+        if api.try_move(1, 0, cell) {
+            return;
+        }
     } else {
-        if x > 0 && sim.try_move(x, y, x.wrapping_sub(1), y + 1) { return; } // try down-left
-        if sim.try_move(x, y, x + 1, y + 1) { return; } // try down-right
-        if x > 0 && sim.try_move(x, y, x.wrapping_sub(1), y) { return; } // try left
-        if sim.try_move(x, y, x + 1, y) { return; } // try right
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 0, cell) {
+            return;
+        }
+        if api.try_move(-1, 0, cell) {
+            return;
+        }
     }
-
-    // stay put
-    sim.stay(x, y);
 }
-
-// Registry of all materials
-#[rustfmt::skip]
-pub static MATERIALS: &[Material] = &[
-    Material {name: "Empty",color: [0, 0, 0, 255],      update: update_empty,},
-    Material {name: "Sand", color: [194, 178, 128, 255],update: update_sand,},
-    Material {name: "Water",color: [64, 164, 223, 255], update: update_water,},
-];
