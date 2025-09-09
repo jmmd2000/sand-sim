@@ -28,14 +28,29 @@ impl Material {
 }
 
 #[inline]
-pub fn color_of(s: Material) -> [u8; 4] {
-    match s {
+pub fn color_of(s: Material, ra: u8) -> [u8; 4] {
+    let base_color = match s {
         Material::Empty => [0, 0, 0, 255],
         Material::Wall => [120, 120, 120, 255],
         Material::Stone => [90, 90, 90, 255],
         Material::Sand => [216, 180, 90, 255],
         Material::Water => [64, 120, 220, 255],
+    };
+
+    // Skip variation for Empty material
+    if s == Material::Empty {
+        return base_color;
     }
+
+    // Use ra for brightness variation (0-255 -> -50 to +50 brightness)
+    let brightness_offset = (ra as i16) - 128; // -128 to +127
+    let brightness = brightness_offset / 4; // Scale down to -42 to +42
+
+    let r = ((base_color[0] as i16 + brightness).clamp(0, 255)) as u8;
+    let g = ((base_color[1] as i16 + brightness).clamp(0, 255)) as u8;
+    let b = ((base_color[2] as i16 + brightness).clamp(0, 255)) as u8;
+
+    [r, g, b, base_color[3]]
 }
 
 // Dispatcher for one cell
@@ -173,10 +188,10 @@ fn update_water(cell: Cell, mut api: SimAPI) {
     let below = api.get(0, 1).material;
     let left = api.get(-1, 0).material;
     let right = api.get(1, 0).material;
-    
-    let is_in_pool = (below == Material::Wall || below == Material::Water) &&
-                     (left == Material::Wall || left == Material::Water) &&
-                     (right == Material::Wall || right == Material::Water);
+
+    let is_in_pool = (below == Material::Wall || below == Material::Water)
+        && (left == Material::Wall || left == Material::Water)
+        && (right == Material::Wall || right == Material::Water);
 
     // Only try horizontal moves if not in a pool
     if !is_in_pool {

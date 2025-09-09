@@ -66,7 +66,8 @@ impl Simulation {
             for x in 0..w {
                 let i = row + x;
                 let p = i * 4;
-                let color = color_of(self.cells[i].material);
+                let cell = self.cells[i];
+                let color = color_of(cell.material, cell.ra);
                 self.pixels[p] = color[0];
                 self.pixels[p + 1] = color[1];
                 self.pixels[p + 2] = color[2];
@@ -156,22 +157,28 @@ impl<'a> SimAPI<'a> {
     /// Move cell into target if it's one of the allowed materials
     /// Clears current cell if successful
     #[inline]
-    pub fn try_move_into(&mut self, dx: i32, dy: i32, cell: Cell, allowed_materials: &[Material]) -> bool {
+    pub fn try_move_into(
+        &mut self,
+        dx: i32,
+        dy: i32,
+        cell: Cell,
+        allowed_materials: &[Material],
+    ) -> bool {
         let target = self.get(dx, dy);
-        
+
         // Check if target material is in the allowed list
         if allowed_materials.contains(&target.material) {
             // Store the target cell to put in current position
             let mut target_cell = target;
             target_cell.clock = self.sim.generation.wrapping_add(1);
-            
+
             // Move our cell to target position
             self.set(dx, dy, cell);
-            
+
             // Put target cell in current position
             let i = idx(self.sim.width, self.x, self.y);
             self.sim.cells[i] = target_cell;
-            
+
             true
         } else {
             false
@@ -200,7 +207,7 @@ impl Simulation {
             cells: vec![
                 Cell {
                     material: Material::Empty,
-                    ra: 0,
+                    ra: 100 + (js_sys::Math::random() * 50.0) as u8,
                     rb: 0,
                     clock: 0
                 };
@@ -238,18 +245,25 @@ impl Simulation {
 
             let w = self.width as i32;
             let h = self.height as i32;
-            let lr = (self.generation & 1) == 0;
 
+            // Create a list of all cell positions
+            // maybe not the best approach
+            let mut positions = Vec::new();
             for y in (0..h).rev() {
-                if lr {
-                    for x in 0..w {
-                        self.update_at(x, y);
-                    }
-                } else {
-                    for x in (0..w).rev() {
-                        self.update_at(x, y);
-                    }
+                for x in 0..w {
+                    positions.push((x, y));
                 }
+            }
+
+            // Shuffle the positions randomly
+            for i in (1..positions.len()).rev() {
+                let j = (self.rng_next() as usize) % (i + 1);
+                positions.swap(i, j);
+            }
+
+            // Update cells in random order
+            for (x, y) in positions {
+                self.update_at(x, y);
             }
         }
         self.frame += 1;
@@ -276,13 +290,13 @@ impl Simulation {
         // mark updated
         self.cells[i] = Cell {
             material,
-            ra: 0,
+            ra: self.rng_next() as u8,
             rb: 0,
             clock: self.generation.wrapping_add(1),
         };
 
         let p = i * 4;
-        let c = color_of(material);
+        let c = color_of(material, self.cells[i].ra);
         self.pixels[p] = c[0];
         self.pixels[p + 1] = c[1];
         self.pixels[p + 2] = c[2];
@@ -306,7 +320,7 @@ impl Simulation {
                         let i = idx(self.width, x, y);
                         self.cells[i] = Cell {
                             material: m,
-                            ra: 0,
+                            ra: self.rng_next() as u8,
                             rb: 0,
                             clock: self.generation.wrapping_add(1),
                         };

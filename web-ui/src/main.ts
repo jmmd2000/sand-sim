@@ -39,26 +39,68 @@ let fpsMin = Infinity;
 let fpsMax = 0;
 
 // Brush
-let drawing = false;
 let currentMaterial = 2; // 1 Wall, 2 Sand, 3 Water, 4 Stone
 let brushRadius = 10;
+let isPainting = false;
+let paintInterval: number | null = null;
+let currentMousePos: { x: number; y: number } | null = null;
 
 // Input
 canvas.addEventListener("pointerdown", (e) => {
-  drawing = true;
+  isPainting = true;
+
+  // Store the current mouse position
+  const rect = canvas.getBoundingClientRect();
+  currentMousePos = {
+    x: Math.floor(((e.clientX - rect.left) / rect.width) * W),
+    y: Math.floor(((e.clientY - rect.top) / rect.height) * H),
+  };
+
   paint(e);
+
+  // Start continuous painting when holding down
+  paintInterval = setInterval(() => {
+    if (isPainting && currentMousePos) {
+      paintAt(currentMousePos.x, currentMousePos.y);
+    }
+  }, 16); // ~60fps painting rate
 });
 
 canvas.addEventListener("pointermove", (e) => {
-  if (drawing) paint(e);
+  if (isPainting) {
+    // Update the stored mouse position
+    const rect = canvas.getBoundingClientRect();
+    currentMousePos = {
+      x: Math.floor(((e.clientX - rect.left) / rect.width) * W),
+      y: Math.floor(((e.clientY - rect.top) / rect.height) * H),
+    };
+    paint(e);
+  }
 });
 
-window.addEventListener("pointerup", () => (drawing = false));
+window.addEventListener("pointerup", () => {
+  isPainting = false;
+  currentMousePos = null;
 
-function paint(e: PointerEvent) {
-  const rect = canvas.getBoundingClientRect();
-  const x = Math.floor(((e.clientX - rect.left) / rect.width) * W);
-  const y = Math.floor(((e.clientY - rect.top) / rect.height) * H);
+  // Stop continuous painting
+  if (paintInterval) {
+    clearInterval(paintInterval);
+    paintInterval = null;
+  }
+});
+
+// Handle pointer leave
+canvas.addEventListener("pointerleave", () => {
+  isPainting = false;
+  currentMousePos = null;
+
+  if (paintInterval) {
+    clearInterval(paintInterval);
+    paintInterval = null;
+  }
+});
+
+function paintAt(x: number, y: number) {
   sim.paint_circle(x, y, brushRadius, currentMaterial);
 
   // If wasm memory grows, refresh the view
@@ -67,6 +109,13 @@ function paint(e: PointerEvent) {
     px = fresh;
     clamped = new Uint8ClampedArray(px.buffer as ArrayBuffer, px.byteOffset, px.byteLength);
   }
+}
+
+function paint(e: PointerEvent) {
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor(((e.clientX - rect.left) / rect.width) * W);
+  const y = Math.floor(((e.clientY - rect.top) / rect.height) * H);
+  paintAt(x, y);
 }
 
 function draw() {
