@@ -1,11 +1,13 @@
-import init, { Simulation } from "./wasm/sim.js";
+import init, { Simulation } from "./wasm/sim_core.js";
 
 const canvas = document.getElementById("c") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 const W = canvas.width;
 const H = canvas.height;
 
-await init();
+const wasmExports = await init();
+const wasmMemory: WebAssembly.Memory = wasmExports.memory;
+let wasmBuffer: ArrayBuffer = wasmMemory.buffer;
 
 const sim = new Simulation(W, H);
 
@@ -17,10 +19,6 @@ const maxFrameCounter = document.getElementById("max-frame") as HTMLSpanElement;
 const emptyCountSpan = document.getElementById("empty-count") as HTMLSpanElement;
 const sandCountSpan = document.getElementById("sand-count") as HTMLSpanElement;
 const waterCountSpan = document.getElementById("water-count") as HTMLSpanElement;
-
-// Pixels
-let px = sim.pixels(); // Uint8Array view into WASM
-let clamped = new Uint8ClampedArray(px.buffer as ArrayBuffer, px.byteOffset, px.byteLength);
 
 // Physics timing
 const TPS = 60;
@@ -102,13 +100,7 @@ canvas.addEventListener("pointerleave", () => {
 
 function paintAt(x: number, y: number) {
   sim.paint_circle(x, y, brushRadius, currentMaterial);
-
-  // If wasm memory grows, refresh the view
-  const fresh = sim.pixels();
-  if (fresh.buffer !== px.buffer || fresh.byteOffset !== px.byteOffset || fresh.byteLength !== px.byteLength) {
-    px = fresh;
-    clamped = new Uint8ClampedArray(px.buffer as ArrayBuffer, px.byteOffset, px.byteLength);
-  }
+  if (wasmMemory.buffer !== wasmBuffer) wasmBuffer = wasmMemory.buffer;
 }
 
 function paint(e: PointerEvent) {
@@ -119,7 +111,11 @@ function paint(e: PointerEvent) {
 }
 
 function draw() {
-  const img = new ImageData(new Uint8ClampedArray(px.buffer as ArrayBuffer, px.byteOffset, px.byteLength), W, H);
+  const ptr = sim.pixels_ptr();
+  const len = sim.pixels_len();
+  if (wasmMemory.buffer !== wasmBuffer) wasmBuffer = wasmMemory.buffer;
+  const pixels = new Uint8ClampedArray(wasmBuffer, ptr, len);
+  const img = new ImageData(pixels, W, H);
   ctx.putImageData(img, 0, 0);
 }
 
@@ -134,14 +130,6 @@ function loop(now: number) {
 
   while (acc >= dt) {
     sim.step(TICKS_PER_STEP);
-
-    // Refresh pixel view if memory changed
-    const fresh = sim.pixels();
-    if (fresh.buffer !== px.buffer || fresh.byteOffset !== px.byteOffset || fresh.byteLength !== px.byteLength) {
-      px = fresh;
-      clamped = new Uint8ClampedArray(px.buffer as ArrayBuffer, px.byteOffset, px.byteLength);
-    }
-
     acc -= dt;
   }
 
@@ -170,9 +158,9 @@ function loop(now: number) {
   frameCounter.textContent = `Frame: ${frameNum}`;
 
   // Material counts
-  //   if (emptyCountSpan) emptyCountSpan.textContent = sim.count_mat(0).toString();
-  //   if (sandCountSpan) sandCountSpan.textContent = sim.count_mat(2).toString();
-  //   if (waterCountSpan) waterCountSpan.textContent = sim.count_mat(3).toString();
+  if (emptyCountSpan) emptyCountSpan.textContent = sim.count_mat(0).toString();
+  if (sandCountSpan) sandCountSpan.textContent = sim.count_mat(2).toString();
+  if (waterCountSpan) waterCountSpan.textContent = sim.count_mat(3).toString();
 
   requestAnimationFrame(loop);
 }

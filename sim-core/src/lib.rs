@@ -8,10 +8,11 @@ pub struct Simulation {
     width: u32,
     height: u32,
     cells: Vec<Cell>,
-    pixels: Vec<u8>, // RGBA for display
+    pixels: Vec<u8>,
     generation: u8,
     rng: u64,
-    frame: u32, // Frame counter
+    frame: u32,
+    order: Vec<usize>,
 }
 
 #[repr(C)]
@@ -67,7 +68,7 @@ impl Simulation {
                 let i = row + x;
                 let p = i * 4;
                 let cell = self.cells[i];
-                let color = color_of(cell.material, cell.ra);
+                let color = color_of(cell);
                 self.pixels[p] = color[0];
                 self.pixels[p + 1] = color[1];
                 self.pixels[p + 2] = color[2];
@@ -186,6 +187,16 @@ impl<'a> SimAPI<'a> {
     }
 
     #[inline]
+    pub fn rb(&self) -> u8 {
+        self.sim.cells[idx(self.sim.width, self.x, self.y)].rb
+    }
+
+    #[inline]
+    pub fn set_rb(&mut self, v: u8) {
+        self.sim.cells[idx(self.sim.width, self.x, self.y)].rb = v;
+    }
+
+    #[inline]
     pub fn rand_u32(&mut self) -> u32 {
         self.sim.rng_next()
     }
@@ -217,6 +228,7 @@ impl Simulation {
             generation: 0,
             rng: 0xA5A5_1234_89AB_CDEF,
             frame: 0,
+            order: (0..len).collect(),
         };
         sim.write_pixels();
         sim
@@ -232,10 +244,14 @@ impl Simulation {
         self.height
     }
 
-    /// Pointer to the RGBA pixel buffer main.ts
     #[inline]
     pub fn pixels_ptr(&self) -> *const u8 {
         self.pixels.as_ptr()
+    }
+
+    #[inline]
+    pub fn pixels_len(&self) -> usize {
+        self.pixels.len()
     }
 
     /// Step the simulation 'ticks' amount of steps
@@ -243,20 +259,16 @@ impl Simulation {
         for _ in 0..ticks {
             self.generation = self.generation.wrapping_add(1);
 
-            let w = self.width as i32;
-            let h = self.height as i32;
+            let w = self.width as usize;
 
-            let left_to_right = self.generation % 2 == 0;
-            for y in (0..h).rev() {
-                if left_to_right {
-                    for x in 0..w {
-                        self.update_at(x, y);
-                    }
-                } else {
-                    for x in (0..w).rev() {
-                        self.update_at(x, y);
-                    }
-                }
+            for i in (1..self.order.len()).rev() {
+                let j = (self.rng_next() as usize) % (i + 1);
+                self.order.swap(i, j);
+            }
+
+            for idx in 0..self.order.len() {
+                let i = self.order[idx];
+                self.update_at((i % w) as i32, (i / w) as i32);
             }
         }
         self.frame += 1;
@@ -289,7 +301,7 @@ impl Simulation {
         };
 
         let p = i * 4;
-        let c = color_of(material, self.cells[i].ra);
+        let c = color_of(self.cells[i]);
         self.pixels[p] = c[0];
         self.pixels[p + 1] = c[1];
         self.pixels[p + 2] = c[2];
@@ -330,13 +342,5 @@ impl Simulation {
             *c = Cell::empty_with_clock(self.generation.wrapping_add(1));
         }
         self.write_pixels();
-    }
-
-    /// View into the RGBA pixels
-    /// need to refresh the view if WASM memory grows.
-    #[inline]
-    pub fn pixels(&self) -> js_sys::Uint8Array {
-        // The view is valid while `self` is alive and memory hasn't grown.
-        unsafe { js_sys::Uint8Array::view(&self.pixels) }
     }
 }

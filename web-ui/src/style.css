@@ -9,4 +9,5 @@ canvas {
   border: 1px solid #444;
   display: block;
   image-rendering: pixelated;
+  background: #1a4a7a;
 }

@@ -28,27 +28,30 @@ impl Material {
 }
 
 #[inline]
-pub fn color_of(s: Material, ra: u8) -> [u8; 4] {
-    let base_color = match s {
-        Material::Empty => [0, 0, 0, 255],
-        Material::Wall => [120, 120, 120, 255],
-        Material::Stone => [90, 90, 90, 255],
-        Material::Sand => [216, 180, 90, 255],
-        Material::Water => [64, 120, 220, 255],
+pub fn color_of(cell: Cell) -> [u8; 4] {
+    let base_color: [u8; 4] = match cell.material {
+        Material::Empty => return [0, 0, 0, 255],
+        Material::Wall => [100, 95, 90, 255],
+        Material::Stone => [110, 110, 115, 255],
+        Material::Sand => [210, 185, 110, 255],
+        Material::Water => [40, 110, 210, 160],
     };
 
-    // Skip variation for Empty material
-    if s == Material::Empty {
-        return base_color;
-    }
+    let v = cell.ra as i16 - 128;
 
-    // Use ra for brightness variation (0-255 -> -50 to +50 brightness)
-    let brightness_offset = (ra as i16) - 128; // -128 to +127
-    let brightness = brightness_offset / 4; // Scale down to -42 to +42
+    // Per-channel divisors: lower = more variation on that channel.
+    // Sand biases warm (more R/G), water biases cool (more B).
+    let (rd, gd, bd): (i16, i16, i16) = match cell.material {
+        Material::Sand => (5, 7, 12),
+        Material::Water => (12, 7, 4),
+        Material::Stone => (7, 7, 7),
+        Material::Wall => (9, 9, 9),
+        _ => (7, 7, 7),
+    };
 
-    let r = ((base_color[0] as i16 + brightness).clamp(0, 255)) as u8;
-    let g = ((base_color[1] as i16 + brightness).clamp(0, 255)) as u8;
-    let b = ((base_color[2] as i16 + brightness).clamp(0, 255)) as u8;
+    let r = (base_color[0] as i16 + v / rd).clamp(0, 255) as u8;
+    let g = (base_color[1] as i16 + v / gd).clamp(0, 255) as u8;
+    let b = (base_color[2] as i16 + v / bd).clamp(0, 255) as u8;
 
     [r, g, b, base_color[3]]
 }
@@ -109,106 +112,106 @@ fn update_sand(cell: Cell, mut api: SimAPI) {
 }
 
 fn update_water(cell: Cell, mut api: SimAPI) {
-    // Add some randomness to make water feel more viscous
-    if api.rand_u32() % 4 == 0 {
-        return; // 25% chance to not move this tick
-    }
-
     if api.try_move(0, 1, cell) {
         return;
     }
 
-    // Check if on the surface
-    let above = api.get(0, -1).material;
-    let is_surface = above == Material::Empty;
-
     let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
 
-    if is_surface {
-        // Surface water, prioritize horizontal flow (surface tension)
-        if left_first {
-            if api.try_move(-1, 0, cell) {
-                return;
-            }
-            if api.try_move(1, 0, cell) {
-                return;
-            }
-            if api.try_move(-1, 1, cell) {
-                return;
-            }
-            if api.try_move(1, 1, cell) {
-                return;
-            }
-        } else {
-            if api.try_move(1, 0, cell) {
-                return;
-            }
-            if api.try_move(-1, 0, cell) {
-                return;
-            }
-            if api.try_move(1, 1, cell) {
-                return;
-            }
-            if api.try_move(-1, 1, cell) {
-                return;
-            }
+    if left_first {
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 1, cell) {
+            return;
         }
     } else {
-        // Submerged water, try diagonal falls first
-        if left_first {
-            if api.try_move(-1, 1, cell) {
-                return;
-            }
-            if api.try_move(1, 1, cell) {
-                return;
-            }
-            if api.try_move(-1, 0, cell) {
-                return;
-            }
-            if api.try_move(1, 0, cell) {
-                return;
-            }
-        } else {
-            if api.try_move(1, 1, cell) {
-                return;
-            }
-            if api.try_move(-1, 1, cell) {
-                return;
-            }
-            if api.try_move(1, 0, cell) {
-                return;
-            }
-            if api.try_move(-1, 0, cell) {
-                return;
-            }
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 1, cell) {
+            return;
         }
     }
 
-    // Check if in a pool (surrounded by water or walls)
-    let below = api.get(0, 1).material;
-    let left = api.get(-1, 0).material;
-    let right = api.get(1, 0).material;
-
-    let is_in_pool = (below == Material::Wall || below == Material::Water)
-        && (left == Material::Wall || left == Material::Water)
-        && (right == Material::Wall || right == Material::Water);
-
-    // Only try horizontal moves if not in a pool
-    if !is_in_pool {
-        if left_first {
-            if api.try_move(-1, 0, cell) {
-                return;
+    // Scan up to DISPERSION cells in each direction, move to farthest clear cell
+    const DISPERSION: i32 = 7;
+    let dirs: [i32; 2] = if left_first { [-1, 1] } else { [1, -1] };
+    for dir in dirs {
+        let mut max = 0;
+        for d in 1..=DISPERSION {
+            if api.get(dir * d, 0).material != Material::Empty {
+                break;
             }
-            if api.try_move(1, 0, cell) {
-                return;
-            }
-        } else {
-            if api.try_move(1, 0, cell) {
-                return;
-            }
-            if api.try_move(-1, 0, cell) {
-                return;
-            }
+            max = d;
+        }
+        if max > 0 && api.try_move(dir * max, 0, cell) {
+            return;
         }
     }
 }
+
+// fn update_water(cell: Cell, mut api: SimAPI) {
+//     // Add some randomness to make water feel more viscous
+//     // if api.rand_u32() % 10 == 0 {
+//     //     return; // 25% chance to not move this tick
+//     // }
+//
+//     if api.try_move(0, 1, cell) {
+//         return;
+//     }
+//
+//     // Check if on the surface
+//     let above = api.get(0, -1).material;
+//     let is_surface = above == Material::Empty;
+//
+//     let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
+//
+//     if is_surface {
+//         // Surface water, prioritize horizontal flow (surface tension)
+//         if left_first {
+//             if api.try_move(-1, 0, cell) { return; }
+//             if api.try_move(1, 0, cell) { return; }
+//             if api.try_move(-1, 1, cell) { return; }
+//             if api.try_move(1, 1, cell) { return; }
+//         } else {
+//             if api.try_move(1, 0, cell) { return; }
+//             if api.try_move(-1, 0, cell) { return; }
+//             if api.try_move(1, 1, cell) { return; }
+//             if api.try_move(-1, 1, cell) { return; }
+//         }
+//     } else {
+//         // Submerged water, try diagonal falls first
+//         if left_first {
+//             if api.try_move(-1, 1, cell) { return; }
+//             if api.try_move(1, 1, cell) { return; }
+//             if api.try_move(-1, 0, cell) { return; }
+//             if api.try_move(1, 0, cell) { return; }
+//         } else {
+//             if api.try_move(1, 1, cell) { return; }
+//             if api.try_move(-1, 1, cell) { return; }
+//             if api.try_move(1, 0, cell) { return; }
+//             if api.try_move(-1, 0, cell) { return; }
+//         }
+//     }
+//
+//     // Check if in a pool (surrounded by water or walls)
+//     let below = api.get(0, 1).material;
+//     let left = api.get(-1, 0).material;
+//     let right = api.get(1, 0).material;
+//
+//     let is_in_pool = (below == Material::Wall || below == Material::Water)
+//         && (left == Material::Wall || left == Material::Water)
+//         && (right == Material::Wall || right == Material::Water);
+//
+//     // Only try horizontal moves if not in a pool
+//     if !is_in_pool {
+//         if left_first {
+//             if api.try_move(-1, 0, cell) { return; }
+//             if api.try_move(1, 0, cell) { return; }
+//         } else {
+//             if api.try_move(1, 0, cell) { return; }
+//             if api.try_move(-1, 0, cell) { return; }
+//         }
+//     }
+// }
