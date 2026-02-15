@@ -170,9 +170,9 @@ function loop(now: number) {
   frameCounter.textContent = `Frame: ${frameNum}`;
 
   // Material counts
-  if (emptyCountSpan) emptyCountSpan.textContent = sim.count_mat(0).toString();
-  if (sandCountSpan) sandCountSpan.textContent = sim.count_mat(2).toString();
-  if (waterCountSpan) waterCountSpan.textContent = sim.count_mat(3).toString();
+  //   if (emptyCountSpan) emptyCountSpan.textContent = sim.count_mat(0).toString();
+  //   if (sandCountSpan) sandCountSpan.textContent = sim.count_mat(2).toString();
+  //   if (waterCountSpan) waterCountSpan.textContent = sim.count_mat(3).toString();
 
   requestAnimationFrame(loop);
 }

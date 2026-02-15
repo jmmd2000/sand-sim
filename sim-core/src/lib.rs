@@ -246,24 +246,17 @@ impl Simulation {
             let w = self.width as i32;
             let h = self.height as i32;
 
-            // Create a list of all cell positions
-            // maybe not the best approach
-            let mut positions = Vec::new();
+            let left_to_right = self.generation % 2 == 0;
             for y in (0..h).rev() {
-                for x in 0..w {
-                    positions.push((x, y));
+                if left_to_right {
+                    for x in 0..w {
+                        self.update_at(x, y);
+                    }
+                } else {
+                    for x in (0..w).rev() {
+                        self.update_at(x, y);
+                    }
                 }
-            }
-
-            // Shuffle the positions randomly
-            for i in (1..positions.len()).rev() {
-                let j = (self.rng_next() as usize) % (i + 1);
-                positions.swap(i, j);
-            }
-
-            // Update cells in random order
-            for (x, y) in positions {
-                self.update_at(x, y);
             }
         }
         self.frame += 1;
