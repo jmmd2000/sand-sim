@@ -19,6 +19,10 @@ const maxFrameCounter = document.getElementById("max-frame") as HTMLSpanElement;
 const emptyCountSpan = document.getElementById("empty-count") as HTMLSpanElement;
 const sandCountSpan = document.getElementById("sand-count") as HTMLSpanElement;
 const waterCountSpan = document.getElementById("water-count") as HTMLSpanElement;
+const woodCountSpan = document.getElementById("wood-count") as HTMLSpanElement;
+const fireCountSpan = document.getElementById("fire-count") as HTMLSpanElement;
+const smokeCountSpan = document.getElementById("smoke-count") as HTMLSpanElement;
+const ashCountSpan = document.getElementById("ash-count") as HTMLSpanElement;
 
 // Physics timing
 const TPS = 60;
@@ -161,6 +165,10 @@ function loop(now: number) {
   if (emptyCountSpan) emptyCountSpan.textContent = sim.count_mat(0).toString();
   if (sandCountSpan) sandCountSpan.textContent = sim.count_mat(2).toString();
   if (waterCountSpan) waterCountSpan.textContent = sim.count_mat(3).toString();
+  if (woodCountSpan) woodCountSpan.textContent = sim.count_mat(5).toString();
+  if (fireCountSpan) fireCountSpan.textContent = sim.count_mat(6).toString();
+  if (smokeCountSpan) smokeCountSpan.textContent = sim.count_mat(7).toString();
+  if (ashCountSpan) ashCountSpan.textContent = sim.count_mat(8).toString();
 
   requestAnimationFrame(loop);
 }
@@ -173,4 +181,6 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "3") currentMaterial = 3; // Water
   if (e.key === "4") currentMaterial = 4; // Stone
   if (e.key === "5") currentMaterial = 1; // Wall
+  if (e.key === "6") currentMaterial = 5; // Wood
+  if (e.key === "7") currentMaterial = 6; // Fire
 });

@@ -186,6 +186,19 @@ impl<'a> SimAPI<'a> {
         }
     }
 
+    /// Move into target if Empty, or dissolve (destroy) it if it's in the dissolve list
+    #[inline]
+    pub fn try_move_dissolving(&mut self, dx: i32, dy: i32, cell: Cell, dissolve: &[Material]) -> bool {
+        let target = self.get(dx, dy).material;
+        if dissolve.contains(&target) {
+            self.set(dx, dy, cell);
+            self.clear_here();
+            true
+        } else {
+            self.try_move(dx, dy, cell)
+        }
+    }
+
     #[inline]
     pub fn rb(&self) -> u8 {
         self.sim.cells[idx(self.sim.width, self.x, self.y)].rb
