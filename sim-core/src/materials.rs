@@ -15,6 +15,7 @@ pub enum Material {
     Lava = 9,
     Steam = 10,
     Obsidian = 11,
+    Acid = 12,
 }
 
 impl Material {
@@ -32,6 +33,7 @@ impl Material {
             9 => Material::Lava,
             10 => Material::Steam,
             11 => Material::Obsidian,
+            12 => Material::Acid,
             _ => Material::Empty,
         }
     }
@@ -56,6 +58,7 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
         Material::Lava => [207, 70, 10, 255],
         Material::Steam => [200, 220, 255, 160],
         Material::Obsidian => [25, 15, 40, 255],
+        Material::Acid => [3, 160, 45, 220],
     };
 
     let v = cell.ra as i16 - 128;
@@ -74,6 +77,7 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
         Material::Lava => (2, 6, 20),
         Material::Steam => (10, 8, 6),
         Material::Obsidian => (12, 12, 8),
+        Material::Acid => (4, 12, 7),
         _ => (7, 7, 7),
     };
 
@@ -92,13 +96,15 @@ pub fn glow_of(cell: Cell) -> [u8; 4] {
             [255, 120 + b, 0, 200]
         }
         Material::Lava => [255, 60, 0, 160],
+        Material::Acid => [0, 255, 60, 80],
         _ => [0, 0, 0, 0],
     }
 }
 
-const SMOKE_PASSABLE: &[Material] = &[Material::Empty, Material::Sand, Material::Water, Material::Ash, Material::Steam, Material::Lava];
-const STEAM_PASSABLE: &[Material] = &[Material::Empty, Material::Smoke, Material::Water, Material::Ash, Material::Smoke, Material::Lava];
+const SMOKE_PASSABLE: &[Material] = &[Material::Empty, Material::Sand, Material::Water, Material::Ash, Material::Steam, Material::Lava, Material::Acid];
+const STEAM_PASSABLE: &[Material] = &[Material::Empty, Material::Smoke, Material::Water, Material::Ash, Material::Smoke, Material::Lava, Material::Acid];
 const WATER_DISSOLVES: &[Material] = &[Material::Ash];
+const ACID_DISSOLVES: &[Material] = &[Material::Ash, Material::Obsidian, Material::Stone, Material::Wall, Material::Wood, Material::Sand];
 
 // Dispatcher for one cell
 pub fn update_cell(cell: Cell, api: SimAPI) {
@@ -110,6 +116,7 @@ pub fn update_cell(cell: Cell, api: SimAPI) {
         Material::Ash => update_sand(cell, api),
         Material::Lava => update_lava(cell, api),
         Material::Steam => update_steam(cell, api),
+        Material::Acid => update_acid(cell, api),
         _ => { /* Wall, Stone, Wood, Empty - do nothing */ }
     }
 }
@@ -382,15 +389,13 @@ fn update_lava(cell: Cell, mut api: SimAPI) {
 }
 
 fn update_steam(cell: Cell, mut api: SimAPI) {
-    let life = cell.rb.wrapping_add(1);
-    let max_life = 80u8.saturating_add(cell.ra / 2); // random lifespan 80-207 based on ra
+    // Increment life slowly (1/20 chance) so steam lingers 20x longer - ~7-17s at 60tps
+    let life = if api.rand_u32() % 20 == 0 { cell.rb.wrapping_add(1) } else { cell.rb };
+    let max_life = 80u8.saturating_add(cell.ra / 2); // random lifespan 80-207 effective ticks
     if life > max_life {
-        // Condense back to water below if possible, otherwise disappear
-        if api.get(0, 1).material == Material::Empty {
-            let ra = api.rand_u32() as u8;
-            api.set(0, 1, Cell { material: Material::Water, ra, rb: 0, clock: 0 });
-        }
-        api.clear_here();
+        // Condense into water in place; it will fall naturally
+        let ra = api.rand_u32() as u8;
+        api.set(0, 0, Cell { material: Material::Water, ra, rb: 0, clock: 0 });
         return;
     }
 
@@ -432,67 +437,58 @@ fn update_steam(cell: Cell, mut api: SimAPI) {
     api.set_rb(life);
 }
 
-// fn update_water(cell: Cell, mut api: SimAPI) {
-//     // Add some randomness to make water feel more viscous
-//     // if api.rand_u32() % 10 == 0 {
-//     //     return; // 25% chance to not move this tick
-//     // }
-//
-//     if api.try_move(0, 1, cell) {
-//         return;
-//     }
-//
-//     // Check if on the surface
-//     let above = api.get(0, -1).material;
-//     let is_surface = above == Material::Empty;
-//
-//     let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
-//
-//     if is_surface {
-//         // Surface water, prioritize horizontal flow (surface tension)
-//         if left_first {
-//             if api.try_move(-1, 0, cell) { return; }
-//             if api.try_move(1, 0, cell) { return; }
-//             if api.try_move(-1, 1, cell) { return; }
-//             if api.try_move(1, 1, cell) { return; }
-//         } else {
-//             if api.try_move(1, 0, cell) { return; }
-//             if api.try_move(-1, 0, cell) { return; }
-//             if api.try_move(1, 1, cell) { return; }
-//             if api.try_move(-1, 1, cell) { return; }
-//         }
-//     } else {
-//         // Submerged water, try diagonal falls first
-//         if left_first {
-//             if api.try_move(-1, 1, cell) { return; }
-//             if api.try_move(1, 1, cell) { return; }
-//             if api.try_move(-1, 0, cell) { return; }
-//             if api.try_move(1, 0, cell) { return; }
-//         } else {
-//             if api.try_move(1, 1, cell) { return; }
-//             if api.try_move(-1, 1, cell) { return; }
-//             if api.try_move(1, 0, cell) { return; }
-//             if api.try_move(-1, 0, cell) { return; }
-//         }
-//     }
-//
-//     // Check if in a pool (surrounded by water or walls)
-//     let below = api.get(0, 1).material;
-//     let left = api.get(-1, 0).material;
-//     let right = api.get(1, 0).material;
-//
-//     let is_in_pool = (below == Material::Wall || below == Material::Water)
-//         && (left == Material::Wall || left == Material::Water)
-//         && (right == Material::Wall || right == Material::Water);
-//
-//     // Only try horizontal moves if not in a pool
-//     if !is_in_pool {
-//         if left_first {
-//             if api.try_move(-1, 0, cell) { return; }
-//             if api.try_move(1, 0, cell) { return; }
-//         } else {
-//             if api.try_move(1, 0, cell) { return; }
-//             if api.try_move(-1, 0, cell) { return; }
-//         }
-//     }
-// }
+fn update_acid(cell: Cell, mut api: SimAPI) {
+    // Viscous: move 1 in 3 ticks (same as lava)
+    if api.rand_u32() % 3 != 0 {
+        return;
+    }
+
+    // Probabilistically dissolve one adjacent material per tick
+    if api.rand_u32() % 8 == 0 {
+        for (dx, dy) in [(0i32, 1i32), (-1, 0), (1, 0), (0, -1)] {
+            if ACID_DISSOLVES.contains(&api.get(dx, dy).material) {
+                let ra = api.rand_u32() as u8;
+                api.set(dx, dy, Cell { material: Material::Empty, ra, rb: 0, clock: 0 });
+                break;
+            }
+        }
+    }
+
+    if api.try_move(0, 1, cell) {
+        return;
+    }
+
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
+
+    if left_first {
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+    } else {
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+    }
+
+    // Disperse sideways
+    const DISPERSION: i32 = 2;
+    let dirs: [i32; 2] = if left_first { [-1, 1] } else { [1, -1] };
+    for dir in dirs {
+        let mut max = 0;
+        for d in 1..=DISPERSION {
+            if api.get(dir * d, 0).material != Material::Empty {
+                break;
+            }
+            max = d;
+        }
+        if max > 0 && api.try_move(dir * max, 0, cell) {
+            return;
+        }
+    }
+}
