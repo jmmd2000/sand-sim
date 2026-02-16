@@ -11,6 +11,10 @@ let wasmBuffer: ArrayBuffer = wasmMemory.buffer;
 
 const sim = new Simulation(W, H);
 
+// Offscreen canvas for glow compositing
+const glowCanvas = new OffscreenCanvas(W, H);
+const glowCtx = glowCanvas.getContext("2d")!;
+
 // counters
 const frameCounter = document.getElementById("frame") as HTMLSpanElement;
 const fpsCounter = document.getElementById("fps") as HTMLSpanElement;
@@ -23,6 +27,8 @@ const woodCountSpan = document.getElementById("wood-count") as HTMLSpanElement;
 const fireCountSpan = document.getElementById("fire-count") as HTMLSpanElement;
 const smokeCountSpan = document.getElementById("smoke-count") as HTMLSpanElement;
 const ashCountSpan = document.getElementById("ash-count") as HTMLSpanElement;
+const lavaCountSpan = document.getElementById("lava-count") as HTMLSpanElement;
+const steamCountSpan = document.getElementById("steam-count") as HTMLSpanElement;
 
 // Physics timing
 const TPS = 60;
@@ -115,12 +121,19 @@ function paint(e: PointerEvent) {
 }
 
 function draw() {
-  const ptr = sim.pixels_ptr();
-  const len = sim.pixels_len();
   if (wasmMemory.buffer !== wasmBuffer) wasmBuffer = wasmMemory.buffer;
-  const pixels = new Uint8ClampedArray(wasmBuffer, ptr, len);
-  const img = new ImageData(pixels, W, H);
-  ctx.putImageData(img, 0, 0);
+
+  const pixels = new Uint8ClampedArray(wasmBuffer, sim.pixels_ptr(), sim.pixels_len());
+  ctx.putImageData(new ImageData(pixels, W, H), 0, 0);
+
+  // Glow pass: draw emissive pixels blurred onto main canvas
+  const glowPixels = new Uint8ClampedArray(wasmBuffer, sim.glow_pixels_ptr(), sim.glow_pixels_len());
+  glowCtx.putImageData(new ImageData(glowPixels, W, H), 0, 0);
+  ctx.filter = "blur(8px)";
+  ctx.globalCompositeOperation = "lighter";
+  ctx.drawImage(glowCanvas, 0, 0);
+  ctx.filter = "none";
+  ctx.globalCompositeOperation = "source-over";
 }
 
 function loop(now: number) {
@@ -169,6 +182,8 @@ function loop(now: number) {
   if (fireCountSpan) fireCountSpan.textContent = sim.count_mat(6).toString();
   if (smokeCountSpan) smokeCountSpan.textContent = sim.count_mat(7).toString();
   if (ashCountSpan) ashCountSpan.textContent = sim.count_mat(8).toString();
+  if (lavaCountSpan) lavaCountSpan.textContent = sim.count_mat(9).toString();
+  if (steamCountSpan) steamCountSpan.textContent = sim.count_mat(10).toString();
 
   requestAnimationFrame(loop);
 }
@@ -183,4 +198,5 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "5") currentMaterial = 1; // Wall
   if (e.key === "6") currentMaterial = 5; // Wood
   if (e.key === "7") currentMaterial = 6; // Fire
+  if (e.key === "8") currentMaterial = 9; // Lava
 });

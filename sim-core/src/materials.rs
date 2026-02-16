@@ -7,11 +7,14 @@ pub enum Material {
     Wall = 1,
     Sand = 2,
     Water = 3,
-    Stone = 4, // immovable solid
+    Stone = 4,
     Wood = 5,
     Fire = 6,
     Smoke = 7,
     Ash = 8,
+    Lava = 9,
+    Steam = 10,
+    Obsidian = 11,
 }
 
 impl Material {
@@ -26,6 +29,9 @@ impl Material {
             6 => Material::Fire,
             7 => Material::Smoke,
             8 => Material::Ash,
+            9 => Material::Lava,
+            10 => Material::Steam,
+            11 => Material::Obsidian,
             _ => Material::Empty,
         }
     }
@@ -47,6 +53,9 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
         Material::Fire => [220, 60, 10, 255],
         Material::Smoke => [80, 80, 85, 180],
         Material::Ash => [160, 155, 145, 255],
+        Material::Lava => [207, 70, 10, 255],
+        Material::Steam => [200, 220, 255, 160],
+        Material::Obsidian => [25, 15, 40, 255],
     };
 
     let v = cell.ra as i16 - 128;
@@ -62,6 +71,9 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
         Material::Fire => (2, 4, 20),
         Material::Smoke => (6, 6, 6),
         Material::Ash => (10, 10, 8),
+        Material::Lava => (2, 6, 20),
+        Material::Steam => (10, 8, 6),
+        Material::Obsidian => (12, 12, 8),
         _ => (7, 7, 7),
     };
 
@@ -72,7 +84,20 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
     [r, g, b, base_color[3]]
 }
 
-const SMOKE_PASSABLE: &[Material] = &[Material::Empty, Material::Sand, Material::Water, Material::Ash];
+#[inline]
+pub fn glow_of(cell: Cell) -> [u8; 4] {
+    match cell.material {
+        Material::Fire => {
+            let b = (cell.ra as u16 * 40 / 255) as u8;
+            [255, 120 + b, 0, 200]
+        }
+        Material::Lava => [255, 60, 0, 160],
+        _ => [0, 0, 0, 0],
+    }
+}
+
+const SMOKE_PASSABLE: &[Material] = &[Material::Empty, Material::Sand, Material::Water, Material::Ash, Material::Steam, Material::Lava];
+const STEAM_PASSABLE: &[Material] = &[Material::Empty, Material::Smoke, Material::Water, Material::Ash, Material::Smoke, Material::Lava];
 const WATER_DISSOLVES: &[Material] = &[Material::Ash];
 
 // Dispatcher for one cell
@@ -83,6 +108,8 @@ pub fn update_cell(cell: Cell, api: SimAPI) {
         Material::Fire => update_fire(cell, api),
         Material::Smoke => update_smoke(cell, api),
         Material::Ash => update_sand(cell, api),
+        Material::Lava => update_lava(cell, api),
+        Material::Steam => update_steam(cell, api),
         _ => { /* Wall, Stone, Wood, Empty - do nothing */ }
     }
 }
@@ -256,6 +283,148 @@ fn update_smoke(cell: Cell, mut api: SimAPI) {
             return;
         }
         if api.try_move_into(-1, 0, cell, SMOKE_PASSABLE) {
+            return;
+        }
+    }
+
+    api.set_rb(life);
+}
+
+fn update_lava(cell: Cell, mut api: SimAPI) {
+    // Lava touching water: become obsidian, water becomes steam, burst nearby steam
+    for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
+        if api.get(dx, dy).material == Material::Water {
+            let ra = api.rand_u32() as u8;
+            api.set(dx, dy, Cell { material: Material::Steam, ra, rb: 0, clock: 0 });
+            // Burst extra steam into surrounding empty cells
+            for (sdx, sdy) in [(-1i32, -2i32), (0, -2), (1, -2), (-1, -1), (1, -1), (-2, 0), (2, 0)] {
+                if api.get(sdx, sdy).material == Material::Empty {
+                    let ra = api.rand_u32() as u8;
+                    api.set(sdx, sdy, Cell { material: Material::Steam, ra, rb: 0, clock: 0 });
+                }
+            }
+            let ra2 = api.rand_u32() as u8;
+            api.set(0, 0, Cell { material: Material::Obsidian, ra: ra2, rb: 0, clock: 0 });
+            return;
+        }
+    }
+
+    // Lava melts adjacent stone back to lava
+    if api.rand_u32() % 15 == 0 {
+        for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
+            if api.get(dx, dy).material == Material::Stone {
+                let ra = api.rand_u32() as u8;
+                api.set(dx, dy, Cell { material: Material::Lava, ra, rb: 0, clock: 0 });
+                break;
+            }
+        }
+    }
+
+    // Lava ignites adjacent wood
+    if api.rand_u32() % 8 == 0 {
+        for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
+            if api.get(dx, dy).material == Material::Wood {
+                let ra = api.rand_u32() as u8;
+                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+            }
+        }
+    }
+
+    // Cool to obsidian over time (rb counts up slowly)
+    let life = if api.rand_u32() % 30 == 0 { cell.rb.wrapping_add(1) } else { cell.rb };
+    if life > 220 {
+        let ra = api.rand_u32() as u8;
+        api.set(0, 0, Cell { material: Material::Obsidian, ra, rb: 0, clock: 0 });
+        return;
+    }
+
+    // Viscous: only move 1 in 3 ticks
+    if api.rand_u32() % 3 != 0 {
+        api.set_rb(life);
+        return;
+    }
+    let cell = Cell { rb: life, ..cell };
+
+    if api.try_move(0, 1, cell) {
+        return;
+    }
+
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
+    if left_first {
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 0, cell) {
+            return;
+        }
+        if api.try_move(1, 0, cell) {
+            return;
+        }
+    } else {
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 0, cell) {
+            return;
+        }
+        if api.try_move(-1, 0, cell) {
+            return;
+        }
+    }
+
+    api.set_rb(life);
+}
+
+fn update_steam(cell: Cell, mut api: SimAPI) {
+    let life = cell.rb.wrapping_add(1);
+    let max_life = 80u8.saturating_add(cell.ra / 2); // random lifespan 80-207 based on ra
+    if life > max_life {
+        // Condense back to water below if possible, otherwise disappear
+        if api.get(0, 1).material == Material::Empty {
+            let ra = api.rand_u32() as u8;
+            api.set(0, 1, Cell { material: Material::Water, ra, rb: 0, clock: 0 });
+        }
+        api.clear_here();
+        return;
+    }
+
+    let cell = Cell { rb: life, ..cell };
+
+    if api.try_move_into(0, -1, cell, STEAM_PASSABLE) {
+        return;
+    }
+
+    let left_first = api.rand_u32() & 1 == 0;
+    if left_first {
+        if api.try_move_into(-1, -1, cell, STEAM_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(1, -1, cell, STEAM_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(-1, 0, cell, STEAM_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(1, 0, cell, STEAM_PASSABLE) {
+            return;
+        }
+    } else {
+        if api.try_move_into(1, -1, cell, STEAM_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(-1, -1, cell, STEAM_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(1, 0, cell, STEAM_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(-1, 0, cell, STEAM_PASSABLE) {
             return;
         }
     }

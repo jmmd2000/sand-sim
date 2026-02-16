@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 
 mod materials;
-use materials::{Material, color_of, update_cell};
+use materials::{Material, color_of, glow_of, update_cell};
 
 #[wasm_bindgen]
 pub struct Simulation {
@@ -9,6 +9,7 @@ pub struct Simulation {
     height: u32,
     cells: Vec<Cell>,
     pixels: Vec<u8>,
+    glow_pixels: Vec<u8>,
     generation: u8,
     rng: u64,
     frame: u32,
@@ -73,6 +74,11 @@ impl Simulation {
                 self.pixels[p + 1] = color[1];
                 self.pixels[p + 2] = color[2];
                 self.pixels[p + 3] = color[3];
+                let glow = glow_of(cell);
+                self.glow_pixels[p] = glow[0];
+                self.glow_pixels[p + 1] = glow[1];
+                self.glow_pixels[p + 2] = glow[2];
+                self.glow_pixels[p + 3] = glow[3];
             }
         }
     }
@@ -238,6 +244,7 @@ impl Simulation {
                 len
             ],
             pixels: vec![0; len * 4],
+            glow_pixels: vec![0; len * 4],
             generation: 0,
             rng: 0xA5A5_1234_89AB_CDEF,
             frame: 0,
@@ -265,6 +272,16 @@ impl Simulation {
     #[inline]
     pub fn pixels_len(&self) -> usize {
         self.pixels.len()
+    }
+
+    #[inline]
+    pub fn glow_pixels_ptr(&self) -> *const u8 {
+        self.glow_pixels.as_ptr()
+    }
+
+    #[inline]
+    pub fn glow_pixels_len(&self) -> usize {
+        self.glow_pixels.len()
     }
 
     /// Step the simulation 'ticks' amount of steps
