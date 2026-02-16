@@ -4,7 +4,7 @@ import init, { Simulation } from "../wasm/sim_core.js";
 const TPS = 60;
 const dt = 1000 / TPS; // ms per simulation tick
 
-export const COUNT_IDS = [2, 3, 5, 6, 7, 8, 9, 10, 11, 12];
+export const COUNT_IDS = [2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 export function useSimulation(canvasRef: RefObject<HTMLCanvasElement | null>, W: number, H: number, paused: boolean, ticksPerStep: number) {
   // Mutable values read/written inside the requestAnimationFrame loop — never trigger re-renders

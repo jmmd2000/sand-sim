@@ -28,12 +28,7 @@ pub struct Cell {
 impl Cell {
     #[inline]
     pub fn empty_with_clock(clock: u8) -> Self {
-        Self {
-            material: Material::Empty,
-            ra: 0,
-            rb: 0,
-            clock,
-        }
+        Self { material: Material::Empty, ra: 0, rb: 0, clock }
     }
 }
 
@@ -116,12 +111,7 @@ impl<'a> SimAPI<'a> {
         let ny = self.y + dy;
 
         if !self.sim.in_bounds(nx, ny) {
-            return Cell {
-                material: Material::Wall,
-                ra: 0,
-                rb: 0,
-                clock: self.sim.generation,
-            };
+            return Cell { material: Material::Wall, ra: 0, rb: 0, clock: self.sim.generation };
         }
 
         self.sim.cells[idx(self.sim.width, nx, ny)]
@@ -164,13 +154,7 @@ impl<'a> SimAPI<'a> {
     /// Move cell into target if it's one of the allowed materials
     /// Clears current cell if successful
     #[inline]
-    pub fn try_move_into(
-        &mut self,
-        dx: i32,
-        dy: i32,
-        cell: Cell,
-        allowed_materials: &[Material],
-    ) -> bool {
+    pub fn try_move_into(&mut self, dx: i32, dy: i32, cell: Cell, allowed_materials: &[Material]) -> bool {
         let target = self.get(dx, dy);
 
         // Check if target material is in the allowed list
@@ -192,22 +176,28 @@ impl<'a> SimAPI<'a> {
         }
     }
 
-    /// Move into target if Empty, or dissolve (destroy) it if it's in the dissolve list
+    /// Move into target if Empty, or dissolve it if it matches a (Material, rate) pair.
+    /// Rate is the 1/N probability denominator - use 1 for always. Returns false if
+    /// matched but the rate check failed (treated as blocked).
     #[inline]
-    pub fn try_move_dissolving(&mut self, dx: i32, dy: i32, cell: Cell, dissolve: &[Material]) -> bool {
+    pub fn try_move_dissolving(&mut self, dx: i32, dy: i32, cell: Cell, dissolve: &[(Material, u32)]) -> bool {
         let nx = self.x + dx;
         let ny = self.y + dy;
         if !self.sim.in_bounds(nx, ny) {
             return false;
         }
         let target = self.get(dx, dy).material;
-        if dissolve.contains(&target) {
-            self.set(dx, dy, cell);
-            self.clear_here();
-            true
-        } else {
-            self.try_move(dx, dy, cell)
+        for &(mat, rate) in dissolve {
+            if target == mat {
+                if rate == 1 || self.rand_u32() % rate == 0 {
+                    self.set(dx, dy, cell);
+                    self.clear_here();
+                    return true;
+                }
+                return false;
+            }
         }
+        self.try_move(dx, dy, cell)
     }
 
     #[inline]
@@ -239,15 +229,7 @@ impl Simulation {
         let mut sim = Simulation {
             width,
             height,
-            cells: vec![
-                Cell {
-                    material: Material::Empty,
-                    ra: 100 + (js_sys::Math::random() * 50.0) as u8,
-                    rb: 0,
-                    clock: 0
-                };
-                len
-            ],
+            cells: vec![Cell { material: Material::Empty, ra: 100 + (js_sys::Math::random() * 50.0) as u8, rb: 0, clock: 0 }; len],
             pixels: vec![0; len * 4],
             glow_pixels: vec![0; len * 4],
             generation: 0,
@@ -312,10 +294,7 @@ impl Simulation {
 
     /// Count how many cells of a given material are present
     pub fn count_mat(&self, material_id: u8) -> usize {
-        self.cells
-            .iter()
-            .filter(|&&m| m.material.id() == material_id)
-            .count()
+        self.cells.iter().filter(|&&m| m.material.id() == material_id).count()
     }
 
     /// Set a single cell to a material ID
@@ -328,12 +307,7 @@ impl Simulation {
         let material = Material::from_id(material_id);
 
         // mark updated
-        self.cells[i] = Cell {
-            material,
-            ra: self.rng_next() as u8,
-            rb: 0,
-            clock: self.generation.wrapping_add(1),
-        };
+        self.cells[i] = Cell { material, ra: self.rng_next() as u8, rb: 0, clock: self.generation.wrapping_add(1) };
 
         let p = i * 4;
         let c = color_of(self.cells[i]);
@@ -358,12 +332,7 @@ impl Simulation {
                     let y = cy + dy;
                     if self.in_bounds(x, y) {
                         let i = idx(self.width, x, y);
-                        self.cells[i] = Cell {
-                            material: m,
-                            ra: self.rng_next() as u8,
-                            rb: 0,
-                            clock: self.generation.wrapping_add(1),
-                        };
+                        self.cells[i] = Cell { material: m, ra: self.rng_next() as u8, rb: 0, clock: self.generation.wrapping_add(1) };
                     }
                 }
             }
