@@ -109,20 +109,15 @@ pub fn glow_of(cell: Cell) -> [u8; 4] {
 const SMOKE_PASSABLE: &[Material] = &[Material::Empty, Material::Sand, Material::Water, Material::Ash, Material::Steam, Material::Lava, Material::Acid];
 const STEAM_PASSABLE: &[Material] = &[Material::Empty, Material::Smoke, Material::Water, Material::Ash, Material::Smoke, Material::Lava, Material::Acid];
 const EMBER_PASSABLE: &[Material] = &[Material::Empty, Material::Smoke, Material::Steam];
-const LAVA_DISSOLVES: &[(Material, u32)] = &[
-    (Material::Stone, 20), // 1/20 chance - melts slowly
-    (Material::Sand, 10),  // 1/10 chance - melts faster
-];
-const WATER_DISSOLVES: &[(Material, u32)] = &[
-    (Material::Ash, 1), // always - water washes ash away instantly
-];
+const LAVA_DISSOLVES: &[(Material, u32)] = &[(Material::Stone, 20), (Material::Sand, 10), (Material::Ash, 1)];
+const WATER_DISSOLVES: &[(Material, u32)] = &[(Material::Ash, 1)];
 const ACID_DISSOLVES: &[(Material, u32)] = &[
-    (Material::Ash, 1),       // instant
-    (Material::Sand, 5),      // fast
-    (Material::Wood, 10),     // medium
-    (Material::Stone, 20),    // slow
-    (Material::Obsidian, 40), // very slow
-    (Material::Wall, 50),     // very slow
+    (Material::Ash, 1),
+    (Material::Sand, 5),
+    (Material::Wood, 10),
+    (Material::Stone, 20),
+    (Material::Obsidian, 40),
+    (Material::Wall, 50),
 ];
 
 // Dispatcher for one cell
@@ -137,7 +132,9 @@ pub fn update_cell(cell: Cell, api: SimAPI) {
         Material::Steam => update_steam(cell, api),
         Material::Acid => update_acid(cell, api),
         Material::Ember => update_ember(cell, api),
-        _ => { /* Wall, Stone, Wood, Empty - do nothing */ }
+        Material::Wood => update_wood(cell, api),
+        Material::Stone => update_stone(cell, api),
+        _ => { /* Wall, Empty - do nothing */ }
     }
 }
 
@@ -188,6 +185,13 @@ fn update_sand(cell: Cell, mut api: SimAPI) {
 }
 
 fn update_water(cell: Cell, mut api: SimAPI) {
+    // Boil to steam when heat is high enough
+    if api.heat_here() > 45 && api.rand_u32() % 20 == 0 {
+        let ra = api.rand_u32() as u8;
+        api.set(0, 0, Cell { material: Material::Steam, ra, rb: 0, clock: 0 });
+        return;
+    }
+
     if api.try_move_dissolving(0, 1, cell, WATER_DISSOLVES) {
         return;
     }
@@ -233,6 +237,8 @@ fn update_water(cell: Cell, mut api: SimAPI) {
 }
 
 fn update_fire(cell: Cell, mut api: SimAPI) {
+    api.set_heat(0, 0, 230);
+
     // Water extinguishes fire
     for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
         if api.get(dx, dy).material == Material::Water {
@@ -319,6 +325,8 @@ fn update_smoke(cell: Cell, mut api: SimAPI) {
 }
 
 fn update_lava(cell: Cell, mut api: SimAPI) {
+    api.set_heat(0, 0, 254);
+
     // Lava touching water: become obsidian, water becomes steam, burst nearby steam
     for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
         if api.get(dx, dy).material == Material::Water {
@@ -517,7 +525,25 @@ fn update_acid(cell: Cell, mut api: SimAPI) {
     }
 }
 
+fn update_wood(_cell: Cell, mut api: SimAPI) {
+    // Ignite from radiated heat (fire/lava nearby, not necessarily touching)
+    if api.heat_here() > 35 && api.rand_u32() % 30 == 0 {
+        let ra = api.rand_u32() as u8;
+        api.set(0, 0, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+    }
+}
+
+fn update_stone(_cell: Cell, mut api: SimAPI) {
+    // Melt to lava under extreme sustained heat (essentially submerged in lava)
+    if api.heat_here() > 55 && api.rand_u32() % 300 == 0 {
+        let ra = api.rand_u32() as u8;
+        api.set(0, 0, Cell { material: Material::Lava, ra, rb: 0, clock: 0 });
+    }
+}
+
 fn update_ember(cell: Cell, mut api: SimAPI) {
+    api.set_heat(0, 0, 180);
+
     let life = cell.rb.wrapping_add(1);
     let max_life = 20u8.saturating_add(cell.ra / 5); // random lifespan 20-71
     if life > max_life {

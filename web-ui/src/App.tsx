@@ -38,9 +38,10 @@ export default function App() {
   const [brushRadius, setBrushRadius] = useState(10);
   const [paused, setPaused] = useState(false);
   const [ticksPerStep, setTicksPerStep] = useState(4);
+  const [showHeat, setShowHeat] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sim = useSimulation(canvasRef, W, H, paused, ticksPerStep);
+  const sim = useSimulation(canvasRef, W, H, paused, ticksPerStep, showHeat);
 
   const { onPointerDown, onPointerMove, onPointerUp } = usePainting(canvasRef, W, H, (x, y) => sim.paint(x, y, currentMaterial, brushRadius));
 
@@ -112,6 +113,9 @@ export default function App() {
               </button>
               <button className="ctrl-btn danger" onClick={sim.clear}>
                 Clear
+              </button>
+              <button className={`ctrl-btn${showHeat ? " active" : ""}`} onClick={() => setShowHeat((v) => !v)}>
+                Heat
               </button>
             </div>
           </div>

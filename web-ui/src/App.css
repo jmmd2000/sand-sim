@@ -176,6 +176,7 @@ kbd {
 }
 .ctrl-btn:hover:not(:disabled) { background: #333; }
 .ctrl-btn:disabled { opacity: 0.35; cursor: default; }
+.ctrl-btn.active  { background: #252535; border-color: var(--accent); color: var(--accent); }
 .ctrl-btn.primary { border-color: var(--accent); color: var(--accent); }
 .ctrl-btn.primary:hover { background: #1a2a3a; }
 .ctrl-btn.danger  { border-color: var(--danger); color: var(--danger); }

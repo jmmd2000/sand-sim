@@ -14,6 +14,8 @@ pub struct Simulation {
     rng: u64,
     frame: u32,
     order: Vec<usize>,
+    heat: Vec<u8>,
+    heat_next: Vec<u8>,
 }
 
 #[repr(C)]
@@ -76,6 +78,27 @@ impl Simulation {
                 self.glow_pixels[p + 3] = glow[3];
             }
         }
+    }
+
+    fn diffuse_heat(&mut self) {
+        let w = self.width as usize;
+        let h = self.height as usize;
+        let len = w * h;
+        for i in 0..len {
+            let x = i % w;
+            let y = i / w;
+            let n  = if y > 0     { self.heat[i - w] as u32 } else { 0 };
+            let s  = if y + 1 < h { self.heat[i + w] as u32 } else { 0 };
+            let e  = if x + 1 < w { self.heat[i + 1] as u32 } else { 0 };
+            let ww = if x > 0     { self.heat[i - 1] as u32 } else { 0 };
+            let c  = self.heat[i] as u32;
+            // Equal-weight 5-tap average, no decay — heat fills enclosed spaces naturally
+            let diffused = ((c + n + s + e + ww) / 5) as u8;
+            self.heat_next[i] = diffused.max(self.heat_next[i]);
+        }
+
+        std::mem::swap(&mut self.heat, &mut self.heat_next);
+        self.heat_next.fill(0); // clear for next tick's source writes
     }
 
     #[inline]
@@ -219,6 +242,27 @@ impl<'a> SimAPI<'a> {
     pub fn generation(&self) -> u8 {
         self.sim.generation
     }
+
+    #[inline]
+    pub fn heat_here(&self) -> u8 {
+        self.sim.heat[idx(self.sim.width, self.x, self.y)]
+    }
+
+    #[inline]
+    pub fn get_heat(&self, dx: i32, dy: i32) -> u8 {
+        let nx = self.x + dx;
+        let ny = self.y + dy;
+        if !self.sim.in_bounds(nx, ny) { return 0; }
+        self.sim.heat[idx(self.sim.width, nx, ny)]
+    }
+
+    #[inline]
+    pub fn set_heat(&mut self, dx: i32, dy: i32, v: u8) {
+        let nx = self.x + dx;
+        let ny = self.y + dy;
+        if !self.sim.in_bounds(nx, ny) { return; }
+        self.sim.heat_next[idx(self.sim.width, nx, ny)] = v;
+    }
 }
 
 #[wasm_bindgen]
@@ -236,6 +280,8 @@ impl Simulation {
             rng: 0xA5A5_1234_89AB_CDEF,
             frame: 0,
             order: (0..len).collect(),
+            heat: vec![0; len],
+            heat_next: vec![0; len],
         };
         sim.write_pixels();
         sim
@@ -271,6 +317,16 @@ impl Simulation {
         self.glow_pixels.len()
     }
 
+    #[inline]
+    pub fn heat_ptr(&self) -> *const u8 {
+        self.heat.as_ptr()
+    }
+
+    #[inline]
+    pub fn heat_len(&self) -> usize {
+        self.heat.len()
+    }
+
     /// Step the simulation 'ticks' amount of steps
     pub fn step(&mut self, ticks: u32) {
         for _ in 0..ticks {
@@ -287,6 +343,8 @@ impl Simulation {
                 let i = self.order[idx];
                 self.update_at((i % w) as i32, (i / w) as i32);
             }
+
+            self.diffuse_heat();
         }
         self.frame += 1;
         self.write_pixels();
