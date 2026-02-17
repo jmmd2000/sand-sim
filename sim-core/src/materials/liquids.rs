@@ -5,8 +5,11 @@ const LAVA_DISSOLVES: &[(Material, u32)] = &[(Material::Stone, 20), (Material::S
 const WATER_DISSOLVES: &[(Material, u32)] = &[(Material::Ash, 1)];
 const ACID_DISSOLVES: &[(Material, u32)] = &[
     (Material::Ash, 1),
+    (Material::Gunpowder, 3),
     (Material::Sand, 5),
+    (Material::Ice, 8),
     (Material::Wood, 10),
+    (Material::Oil, 12),
     (Material::Stone, 20),
     (Material::Obsidian, 40),
     (Material::Wall, 50),
@@ -42,6 +45,26 @@ pub(super) fn update_water(cell: Cell, mut api: SimAPI) {
             return;
         }
         if api.try_move_dissolving(-1, 1, cell, WATER_DISSOLVES) {
+            return;
+        }
+    }
+
+    // Water is denser than oil - sink through it
+    if api.try_move_into(0, 1, cell, &[Material::Oil]) {
+        return;
+    }
+    if left_first {
+        if api.try_move_into(-1, 1, cell, &[Material::Oil]) {
+            return;
+        }
+        if api.try_move_into(1, 1, cell, &[Material::Oil]) {
+            return;
+        }
+    } else {
+        if api.try_move_into(1, 1, cell, &[Material::Oil]) {
+            return;
+        }
+        if api.try_move_into(-1, 1, cell, &[Material::Oil]) {
             return;
         }
     }
@@ -154,6 +177,56 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
             return;
         }
         if api.try_move_dissolving(-1, 0, cell, LAVA_DISSOLVES) {
+            return;
+        }
+    }
+}
+
+pub(super) fn update_oil(cell: Cell, mut api: SimAPI) {
+    const DISPERSION: i32 = 5;
+    const IGNITE_SOURCES: &[Material] = &[Material::Fire, Material::Lava, Material::Ember];
+    const IGNITE_CHANCE: u32 = 12; // 1-in-N chance to catch fire each tick when adjacent
+    // Ignite from adjacent fire/lava/ember
+    for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
+        if IGNITE_SOURCES.contains(&api.get(dx, dy).material) && api.rand_u32() % IGNITE_CHANCE == 0 {
+            let ra = api.rand_u32() as u8;
+            api.set(0, 0, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+            return;
+        }
+    }
+
+    if api.try_move(0, 1, cell) {
+        return;
+    }
+
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
+    if left_first {
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+    } else {
+        if api.try_move(1, 1, cell) {
+            return;
+        }
+        if api.try_move(-1, 1, cell) {
+            return;
+        }
+    }
+
+    // Spread sideways
+    let dirs: [i32; 2] = if left_first { [-1, 1] } else { [1, -1] };
+    for dir in dirs {
+        let mut max = 0;
+        for d in 1..=DISPERSION {
+            if api.get(dir * d, 0).material != Material::Empty {
+                break;
+            }
+            max = d;
+        }
+        if max > 0 && api.try_move(dir * max, 0, cell) {
             return;
         }
     }

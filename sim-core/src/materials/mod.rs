@@ -23,6 +23,9 @@ pub enum Material {
     Obsidian = 11,
     Acid = 12,
     Ember = 13,
+    Oil = 14,
+    Ice = 15,
+    Gunpowder = 16,
 }
 
 impl Material {
@@ -42,6 +45,9 @@ impl Material {
             11 => Material::Obsidian,
             12 => Material::Acid,
             13 => Material::Ember,
+            14 => Material::Oil,
+            15 => Material::Ice,
+            16 => Material::Gunpowder,
             _ => Material::Empty,
         }
     }
@@ -69,6 +75,9 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
         Material::Obsidian => [25, 15, 40, 255],
         Material::Acid => [3, 160, 45, 220],
         Material::Ember => [255, 160, 20, 255],
+        Material::Oil => [22, 20, 16, 255],
+        Material::Ice => [160, 216, 240, 255],
+        Material::Gunpowder => [60, 55, 50, 255],
     };
 
     let v = cell.ra as i16 - 128;
@@ -86,6 +95,9 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
         Material::Obsidian => (12, 12, 8),
         Material::Acid => (4, 12, 7),
         Material::Ember => (2, 5, 20),
+        Material::Oil => (8, 6, 4),
+        Material::Ice => (12, 10, 8),
+        Material::Gunpowder => (8, 8, 8),
         _ => (7, 7, 7),
     };
 
@@ -121,6 +133,9 @@ pub fn update_cell(cell: Cell, api: SimAPI) {
         Material::Ember => fire::update_ember(cell, api),
 
         Material::Stone => solids::update_stone(cell, api),
+        Material::Ice => solids::update_ice(cell, api),
+        Material::Oil => liquids::update_oil(cell, api),
+        Material::Gunpowder => powders::update_gunpowder(cell, api),
         _ => {} // Wall, Obsidian, Empty — static
     }
 }

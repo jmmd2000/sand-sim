@@ -9,6 +9,7 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
     const ASH_CHANCE: u32 = 10; // 1-in-N chance to leave ash instead of vanishing
     const WOOD_SPREAD_RATE: u32 = 4; // 1-in-N chance to ignite adjacent wood each tick
     const SMOKE_SPAWN_RATE: u32 = 100; // 1-in-N chance to emit smoke upward each tick
+    const FALL_RATE: u32 = 6; // 1-in-N chance to drip down per tick
 
     api.set_heat(0, 0, HEAT_EMISSION);
 
@@ -24,11 +25,13 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
     let life = cell.rb.wrapping_add(1);
     if life > MAX_LIFESPAN {
         let ra = api.rand_u32() as u8;
-        let becomes = if api.rand_u32() % ASH_CHANCE == 0 { Material::Ash } else { Material::Empty };
+        let below = api.get(0, 1).material;
+        let on_solid = matches!(below, Material::Sand | Material::Stone | Material::Wall | Material::Wood | Material::Obsidian | Material::Ash | Material::Gunpowder | Material::Ice);
+        let becomes = if on_solid && api.rand_u32() % ASH_CHANCE == 0 { Material::Ash } else { Material::Empty };
         api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0 });
         return;
     }
-    api.set_rb(life);
+    let cell = Cell { rb: life, ..cell };
 
     // Spread to adjacent wood
     if api.rand_u32() % WOOD_SPREAD_RATE == 0 {
@@ -45,6 +48,29 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
         let ra = api.rand_u32() as u8;
         api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0 });
     }
+
+    if api.rand_u32() % FALL_RATE == 0 {
+        if api.try_move_into(0, 1, cell, EMBER_PASSABLE) {
+            return;
+        }
+        let left_first = api.rand_u32() & 1 == 0;
+        if left_first {
+            if api.try_move_into(-1, 1, cell, EMBER_PASSABLE) {
+                return;
+            }
+            if api.try_move_into(1, 1, cell, EMBER_PASSABLE) {
+                return;
+            }
+        } else {
+            if api.try_move_into(1, 1, cell, EMBER_PASSABLE) {
+                return;
+            }
+            if api.try_move_into(-1, 1, cell, EMBER_PASSABLE) {
+                return;
+            }
+        }
+    }
+    api.set_rb(life);
 }
 
 pub(super) fn update_ember(cell: Cell, mut api: SimAPI) {

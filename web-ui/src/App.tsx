@@ -15,6 +15,9 @@ const MATERIALS = [
   { id: 11, label: "Obsidian", color: "#19102a", key: "9" },
   { id: 12, label: "Acid", color: "#03a02d", key: "0" },
   { id: 13, label: "Ember", color: "#ffa014", key: "" },
+  { id: 14, label: "Oil", color: "#141210", key: "" },
+  { id: 15, label: "Ice", color: "#a0d8f0", key: "" },
+  { id: 16, label: "Gunpowder", color: "#3c3732", key: "" },
 ];
 
 const KEY_MAP: Record<string, number> = {
@@ -65,7 +68,7 @@ export default function App() {
           SandSim <span className="fps">{sim.fps} fps</span>
         </h1>
         <div className="mat-grid">
-          {MATERIALS.filter((m) => m.key).map((m) => (
+          {MATERIALS.map((m) => (
             <button key={m.id} className={"mat-btn" + (currentMaterial === m.id ? " active" : "")} onClick={() => setCurrentMaterial(m.id)} title={`${m.label} [${m.key}]`}>
               <span className="mat-swatch" style={{ background: m.color }} />
               <span>{m.label}</span>
