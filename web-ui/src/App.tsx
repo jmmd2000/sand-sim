@@ -1,37 +1,41 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useSimulation, COUNT_IDS } from "./hooks/useSimulation";
 import { usePainting } from "./hooks/usePainting";
 import "./App.css";
 
-const MATERIALS = [
-  { id: 0, label: "Erase", color: "#111111", key: "1" },
-  { id: 2, label: "Sand", color: "#d2b96e", key: "2" },
-  { id: 3, label: "Water", color: "#286ed2", key: "3" },
-  { id: 4, label: "Stone", color: "#6e6e73", key: "4" },
-  { id: 1, label: "Wall", color: "#64605a", key: "5" },
-  { id: 5, label: "Wood", color: "#784b1e", key: "6" },
-  { id: 6, label: "Fire", color: "#dc3c0a", key: "7" },
-  { id: 9, label: "Lava", color: "#cf460a", key: "8" },
-  { id: 11, label: "Obsidian", color: "#19102a", key: "9" },
-  { id: 12, label: "Acid", color: "#03a02d", key: "0" },
-  { id: 13, label: "Ember", color: "#ffa014", key: "" },
-  { id: 14, label: "Oil", color: "#141210", key: "" },
-  { id: 15, label: "Ice", color: "#a0d8f0", key: "" },
-  { id: 16, label: "Gunpowder", color: "#3c3732", key: "" },
+type Material = { id: number; label: string; color: string; key: string; group: string | null; desc: string };
+
+const MATERIALS: Material[] = [
+  { id: 0,  label: "Erase",     color: "#111111", key: "", group: null,      desc: "Remove material" },
+  { id: 2,  label: "Sand",      color: "#d2b96e", key: "", group: "Powders", desc: "Falls and piles; sinks through water" },
+  { id: 16, label: "Gunpowder", color: "#3c3732", key: "", group: "Powders", desc: "Falls like sand; explodes on contact with fire, lava, or ember; chain-detonates adjacent gunpowder" },
+  { id: 3,  label: "Water",     color: "#286ed2", key: "", group: "Liquids", desc: "Flows and spreads; boils to steam near heat; extinguishes fire on contact" },
+  { id: 9,  label: "Lava",      color: "#cf460a", key: "", group: "Liquids", desc: "Viscous and extremely hot; ignites wood; solidifies to obsidian when it contacts water" },
+  { id: 12, label: "Acid",      color: "#03a02d", key: "", group: "Liquids", desc: "Dissolves most materials over time; even obsidian and walls erode slowly" },
+  { id: 14, label: "Oil",       color: "#141210", key: "", group: "Liquids", desc: "Floats on water; slowly catches fire from adjacent flames; spreads across the surface as it burns" },
+  { id: 4,  label: "Stone",     color: "#6e6e73", key: "", group: "Solids",  desc: "Stable solid; extremely rarely melts to lava when near a heat source as intense as lava" },
+  { id: 1,  label: "Wall",      color: "#64605a", key: "", group: "Solids",  desc: "Nearly indestructible; immune to fire and lava; dissolves very slowly in acid" },
+  { id: 5,  label: "Wood",      color: "#784b1e", key: "", group: "Solids",  desc: "Burns when touched by fire, lava, or ember; produces smoke and ash" },
+  { id: 11, label: "Obsidian",  color: "#19102a", key: "", group: "Solids",  desc: "Hard solid formed when lava contacts water; immune to fire and lava; dissolves slowly in acid" },
+  { id: 15, label: "Ice",       color: "#a0d8f0", key: "", group: "Solids",  desc: "Melts to water near heat; slowly spreads to freeze adjacent water" },
+  { id: 6,  label: "Fire",      color: "#dc3c0a", key: "", group: "Fire",    desc: "Spreads directly to wood; ignites nearby oil; extinguished by water; drips slowly downward" },
+  { id: 13, label: "Ember",     color: "#ffa014", key: "", group: "Fire",    desc: "Rises through smoke and steam; short-lived; small chance to reignite as fire" },
 ];
 
-const KEY_MAP: Record<string, number> = {
-  "1": 0,
-  "2": 2,
-  "3": 3,
-  "4": 4,
-  "5": 1,
-  "6": 5,
-  "7": 6,
-  "8": 9,
-  "9": 11,
-  "0": 12,
-};
+const GROUPS = ["Powders", "Liquids", "Solids", "Fire"] as const;
+
+// const KEY_MAP: Record<string, number> = {
+//   "1": 0,
+//   "2": 2,
+//   "3": 3,
+//   "4": 4,
+//   "5": 1,
+//   "6": 5,
+//   "7": 6,
+//   "8": 9,
+//   "9": 11,
+//   "0": 12,
+// };
 
 export default function App() {
   const [W, setW] = useState(480);
@@ -48,18 +52,18 @@ export default function App() {
 
   const { onPointerDown, onPointerMove, onPointerUp } = usePainting(canvasRef, W, H, (x, y) => sim.paint(x, y, currentMaterial, brushRadius));
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (KEY_MAP[e.key] !== undefined) setCurrentMaterial(KEY_MAP[e.key]);
-      if (e.key === " ") {
-        e.preventDefault();
-        setPaused((p) => !p);
-      }
-      if (e.key === ".") sim.step();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sim.step]);
+  // useEffect(() => {
+  //   const onKey = (e: KeyboardEvent) => {
+  //     if (KEY_MAP[e.key] !== undefined) setCurrentMaterial(KEY_MAP[e.key]);
+  //     if (e.key === " ") {
+  //       e.preventDefault();
+  //       setPaused((p) => !p);
+  //     }
+  //     if (e.key === ".") sim.step();
+  //   };
+  //   window.addEventListener("keydown", onKey);
+  //   return () => window.removeEventListener("keydown", onKey);
+  // }, [sim.step]);
 
   return (
     <div className="app">
@@ -68,12 +72,24 @@ export default function App() {
           SandSim <span className="fps">{sim.fps} fps</span>
         </h1>
         <div className="mat-grid">
-          {MATERIALS.map((m) => (
-            <button key={m.id} className={"mat-btn" + (currentMaterial === m.id ? " active" : "")} onClick={() => setCurrentMaterial(m.id)} title={`${m.label} [${m.key}]`}>
+          {MATERIALS.filter((m) => m.group === null).map((m) => (
+            <button key={m.id} className={"mat-btn" + (currentMaterial === m.id ? " active" : "")} onClick={() => setCurrentMaterial(m.id)} title={m.desc}>
               <span className="mat-swatch" style={{ background: m.color }} />
               <span>{m.label}</span>
-              <kbd>{m.key}</kbd>
+              {m.key && <kbd>{m.key}</kbd>}
             </button>
+          ))}
+          {GROUPS.map((group) => (
+            <div key={group}>
+              <div className="mat-group-label">{group}</div>
+              {MATERIALS.filter((m) => m.group === group).map((m) => (
+                <button key={m.id} className={"mat-btn" + (currentMaterial === m.id ? " active" : "")} onClick={() => setCurrentMaterial(m.id)} title={m.desc}>
+                  <span className="mat-swatch" style={{ background: m.color }} />
+                  <span>{m.label}</span>
+                  {m.key && <kbd>{m.key}</kbd>}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       </aside>

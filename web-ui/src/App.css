@@ -89,6 +89,14 @@ canvas {
   gap: 2px;
 }
 
+.mat-group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 6px 8px 2px;
+}
+
 .mat-btn {
   display: flex;
   align-items: center;
