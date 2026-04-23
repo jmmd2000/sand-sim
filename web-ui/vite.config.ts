@@ -6,4 +6,8 @@ export default defineConfig({
   base: "/sand-sim/",
   plugins: [react()],
   assetsInclude: ["**/*.wasm"],
+  build: {
+    outDir: "dist/sand-sim",
+    emptyOutDir: true,
+  },
 })
