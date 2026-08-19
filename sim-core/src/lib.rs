@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 
 mod materials;
-use materials::{Material, color_of, glow_of, update_cell};
+pub use materials::{Group, Material, color_of, glow_of, props, update_cell};
 
 #[wasm_bindgen]
 pub struct Simulation {

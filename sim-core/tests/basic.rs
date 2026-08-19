@@ -20,3 +20,16 @@ fn paint_and_count() {
     sim.paint_circle(10, 10, 3, 2);
     assert!(sim.count_mat(2) > 0);
 }
+
+#[wasm_bindgen_test]
+fn props_array_covers_all_materials() {
+    for id in 0..17u8 {
+        let mat = sim_core::Material::from_id(id);
+        let p = sim_core::props(mat);
+        if id == 0 {
+            assert_eq!(p.group, sim_core::Group::Empty);
+        } else {
+            assert_ne!(p.group, sim_core::Group::Empty);
+        }
+    }
+}
