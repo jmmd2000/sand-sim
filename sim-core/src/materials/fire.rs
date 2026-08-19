@@ -31,7 +31,9 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
         api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         return;
     }
-    let cell = Cell { rb: life, ..cell };
+
+    // write updated lifetime before velocity
+    api.set_rb(life);
 
     // Spread to adjacent wood
     if api.rand_u32() % WOOD_SPREAD_RATE == 0 {
@@ -48,6 +50,10 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
         let ra = api.rand_u32() as u8;
         api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
     }
+
+    api.apply_gravity();
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
 
     if api.rand_u32() % FALL_RATE == 0 {
         if api.try_move_into(0, 1, cell, EMBER_PASSABLE) {
@@ -70,7 +76,6 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
             }
         }
     }
-    api.set_rb(life);
 }
 
 pub(super) fn update_ember(cell: Cell, mut api: SimAPI) {
@@ -91,7 +96,7 @@ pub(super) fn update_ember(cell: Cell, mut api: SimAPI) {
         return;
     }
 
-    let cell = Cell { rb: life, ..cell };
+    api.set_rb(life);
 
     // Ignite adjacent wood
     if api.rand_u32() % WOOD_IGNITE_RATE == 0 {
@@ -103,27 +108,31 @@ pub(super) fn update_ember(cell: Cell, mut api: SimAPI) {
         }
     }
 
-    // Rise upward, drifting slightly sideways
-    if api.try_move_into(0, -1, cell, EMBER_PASSABLE) {
-        return;
-    }
+    api.apply_gravity();
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
 
-    let left_first = api.rand_u32() & 1 == 0;
-    if left_first {
-        if api.try_move_into(-1, -1, cell, EMBER_PASSABLE) {
+    if cell.vy == 0 {
+        if api.try_move_into(0, -1, cell, EMBER_PASSABLE) {
             return;
         }
-        if api.try_move_into(1, -1, cell, EMBER_PASSABLE) {
+    }
+
+    // horizontal drifting
+    let left_first = api.rand_u32() & 1 == 0;
+    if left_first {
+        if api.try_move_into(-1, 0, cell, EMBER_PASSABLE) {
+            return;
+        }
+        if api.try_move_into(1, 0, cell, EMBER_PASSABLE) {
             return;
         }
     } else {
-        if api.try_move_into(1, -1, cell, EMBER_PASSABLE) {
+        if api.try_move_into(1, 0, cell, EMBER_PASSABLE) {
             return;
         }
-        if api.try_move_into(-1, -1, cell, EMBER_PASSABLE) {
+        if api.try_move_into(-1, 0, cell, EMBER_PASSABLE) {
             return;
         }
     }
-
-    api.set_rb(life);
 }

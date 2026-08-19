@@ -15,42 +15,39 @@ pub(super) fn update_smoke(cell: Cell, mut api: SimAPI) {
         return;
     }
 
-    let cell = Cell { rb: life, ..cell };
-
-    if api.try_move_into(0, -1, cell, SMOKE_PASSABLE) {
-        return;
-    }
-
-    let left_first = api.rand_u32() & 1 == 0;
-    if left_first {
-        if api.try_move_into(-1, -1, cell, SMOKE_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(1, -1, cell, SMOKE_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(-1, 0, cell, SMOKE_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(1, 0, cell, SMOKE_PASSABLE) {
-            return;
-        }
-    } else {
-        if api.try_move_into(1, -1, cell, SMOKE_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(-1, -1, cell, SMOKE_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(1, 0, cell, SMOKE_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(-1, 0, cell, SMOKE_PASSABLE) {
-            return;
-        }
-    }
-
+    // write updated lifteime before velocity moves the cell
     api.set_rb(life);
+
+    api.apply_gravity();
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
+
+    // if blocked above, try displacement through passable materials
+    if cell.vy == 0 {
+        if api.try_move_into(0, -1, cell, SMOKE_PASSABLE) {
+            return;
+        }
+    }
+
+    // horizontal drifting
+    if api.rand_u32() % 10 == 0 {
+        let left_first = api.rand_u32() & 1 == 0;
+        if left_first {
+            if api.try_move_into(-1, 0, cell, SMOKE_PASSABLE) {
+                return;
+            }
+            if api.try_move_into(1, 0, cell, SMOKE_PASSABLE) {
+                return;
+            }
+        } else {
+            if api.try_move_into(1, 0, cell, SMOKE_PASSABLE) {
+                return;
+            }
+            if api.try_move_into(-1, 0, cell, SMOKE_PASSABLE) {
+                return;
+            }
+        }
+    }
 }
 
 pub(super) fn update_steam(cell: Cell, mut api: SimAPI) {
@@ -66,40 +63,36 @@ pub(super) fn update_steam(cell: Cell, mut api: SimAPI) {
         return;
     }
 
-    let cell = Cell { rb: life, ..cell };
-
-    if api.try_move_into(0, -1, cell, STEAM_PASSABLE) {
-        return;
-    }
-
-    let left_first = api.rand_u32() & 1 == 0;
-    if left_first {
-        if api.try_move_into(-1, -1, cell, STEAM_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(1, -1, cell, STEAM_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(-1, 0, cell, STEAM_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(1, 0, cell, STEAM_PASSABLE) {
-            return;
-        }
-    } else {
-        if api.try_move_into(1, -1, cell, STEAM_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(-1, -1, cell, STEAM_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(1, 0, cell, STEAM_PASSABLE) {
-            return;
-        }
-        if api.try_move_into(-1, 0, cell, STEAM_PASSABLE) {
-            return;
-        }
-    }
-
+    // write updated lifteime before velocity moves the cell
     api.set_rb(life);
+
+    api.apply_gravity();
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
+
+    // if blocked above, try displacement through passable materials
+    if cell.vy == 0 {
+        if api.try_move_into(0, -1, cell, STEAM_PASSABLE) {
+            return;
+        }
+    }
+
+    if api.rand_u32() % 10 == 0 {
+        let left_first = api.rand_u32() & 1 == 0;
+        if left_first {
+            if api.try_move_into(-1, 0, cell, STEAM_PASSABLE) {
+                return;
+            }
+            if api.try_move_into(1, 0, cell, STEAM_PASSABLE) {
+                return;
+            }
+        } else {
+            if api.try_move_into(1, 0, cell, STEAM_PASSABLE) {
+                return;
+            }
+            if api.try_move_into(-1, 0, cell, STEAM_PASSABLE) {
+                return;
+            }
+        }
+    }
 }

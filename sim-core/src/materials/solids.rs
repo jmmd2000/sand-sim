@@ -2,6 +2,9 @@ use super::Material;
 use crate::{Cell, SimAPI};
 
 pub(super) fn update_ice(_cell: Cell, mut api: SimAPI) {
+    api.apply_gravity();
+    api.resolve_velocity();
+
     const MELT_HEAT: u8 = 30;
     const MELT_RATE: u32 = 50; // 1-in-N chance to melt per tick when hot enough
     const FREEZE_RATE: u32 = 200; // 1-in-N chance to freeze an adjacent water cell
@@ -25,6 +28,9 @@ pub(super) fn update_ice(_cell: Cell, mut api: SimAPI) {
 }
 
 pub(super) fn update_stone(_cell: Cell, mut api: SimAPI) {
+    api.apply_gravity();
+    api.resolve_velocity();
+
     const MELT_HEAT: u8 = 55; // needs to be basically submerged in lava to reach this
     const MELT_RATE: u32 = 300; // very rare even when hot enough
 
