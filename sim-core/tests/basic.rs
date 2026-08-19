@@ -82,3 +82,32 @@ fn from_id_round_trips() {
     }
     assert_eq!(Material::from_id(255).id(), 0);
 }
+
+#[wasm_bindgen_test]
+fn cell_velocity_defaults_to_zero() {
+    use sim_core::{Cell, Material};
+
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
+    assert_eq!(cell.vx, 0);
+    assert_eq!(cell.vy, 0);
+}
+
+#[wasm_bindgen_test]
+fn cell_velocity_can_be_set() {
+    use sim_core::{Cell, Material};
+
+    let cell = Cell { material: Material::Sand, ra: 0, rb: 0, clock: 0, vx: -3, vy: 5 };
+    assert_eq!(cell.vx, -3);
+    assert_eq!(cell.vy, 5);
+}
+
+#[wasm_bindgen_test]
+fn cell_spread_preserves_velocity() {
+    use sim_core::{Cell, Material};
+
+    let cell = Cell { material: Material::Sand, ra: 0, rb: 0, clock: 0, vx: 2, vy: -4 };
+    let updated = Cell { rb: 10, ..cell };
+    assert_eq!(updated.vx, 2);
+    assert_eq!(updated.vy, -4);
+    assert_eq!(updated.rb, 10);
+}
