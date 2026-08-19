@@ -62,7 +62,7 @@ pub(super) fn update_steam(cell: Cell, mut api: SimAPI) {
     let max_life = MIN_LIFESPAN.saturating_add(cell.ra / LIFESPAN_VARIANCE);
     if life > max_life {
         let ra = api.rand_u32() as u8;
-        api.set(0, 0, Cell { material: Material::Water, ra, rb: 0, clock: 0 });
+        api.set(0, 0, Cell { material: Material::Water, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         return;
     }
 

@@ -25,12 +25,14 @@ pub struct Cell {
     pub ra: u8,
     pub rb: u8,
     pub clock: u8,
+    pub vx: i8,
+    pub vy: i8,
 }
 
 impl Cell {
     #[inline]
     pub fn empty_with_clock(clock: u8) -> Self {
-        Self { material: Material::Empty, ra: 0, rb: 0, clock }
+        Self { material: Material::Empty, ra: 0, rb: 0, clock, vx: 0, vy: 0 }
     }
 }
 
@@ -134,7 +136,7 @@ impl<'a> SimAPI<'a> {
         let ny = self.y + dy;
 
         if !self.sim.in_bounds(nx, ny) {
-            return Cell { material: Material::Wall, ra: 0, rb: 0, clock: self.sim.generation };
+            return Cell { material: Material::Wall, ra: 0, rb: 0, clock: self.sim.generation, vx: 0, vy: 0 };
         }
 
         self.sim.cells[idx(self.sim.width, nx, ny)]
@@ -277,7 +279,7 @@ impl Simulation {
         let mut sim = Simulation {
             width,
             height,
-            cells: vec![Cell { material: Material::Empty, ra: 100 + (js_sys::Math::random() * 50.0) as u8, rb: 0, clock: 0 }; len],
+            cells: vec![Cell { material: Material::Empty, ra: 100 + (js_sys::Math::random() * 50.0) as u8, rb: 0, clock: 0, vx: 0, vy: 0 }; len],
             pixels: vec![0; len * 4],
             glow_pixels: vec![0; len * 4],
             generation: 0,
@@ -361,7 +363,7 @@ impl Simulation {
         let material = Material::from_id(material_id);
 
         // mark updated
-        self.cells[i] = Cell { material, ra: self.rng_next() as u8, rb: 0, clock: self.generation.wrapping_add(1) };
+        self.cells[i] = Cell { material, ra: self.rng_next() as u8, rb: 0, clock: self.generation.wrapping_add(1), vx: 0, vy: 0 };
 
         let p = i * 4;
         let c = color_of(self.cells[i]);
@@ -386,7 +388,7 @@ impl Simulation {
                     let y = cy + dy;
                     if self.in_bounds(x, y) {
                         let i = idx(self.width, x, y);
-                        self.cells[i] = Cell { material: m, ra: self.rng_next() as u8, rb: 0, clock: self.generation.wrapping_add(1) };
+                        self.cells[i] = Cell { material: m, ra: self.rng_next() as u8, rb: 0, clock: self.generation.wrapping_add(1), vx: 0, vy: 0 };
                     }
                 }
             }

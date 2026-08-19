@@ -47,17 +47,17 @@ fn explode(api: &mut SimAPI, radius: i32) {
                 Material::Wall | Material::Obsidian => {}
                 Material::Gunpowder => {
                     // Chain detonate — turn into fire to trigger neighbours next tick
-                    api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+                    api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
                 }
                 Material::Empty | Material::Smoke | Material::Steam => {
                     if api.rand_u32() % 3 == 0 {
-                        api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+                        api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
                     }
                 }
                 _ => {
                     if api.rand_u32() % 2 == 0 {
                         let becomes = if api.rand_u32() % 5 == 0 { Material::Ash } else { Material::Smoke };
-                        api.set(dx, dy, Cell { material: becomes, ra, rb: 0, clock: 0 });
+                        api.set(dx, dy, Cell { material: becomes, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
                     }
                 }
             }
@@ -65,7 +65,7 @@ fn explode(api: &mut SimAPI, radius: i32) {
     }
     // Replace the gunpowder itself with fire
     let ra = api.rand_u32() as u8;
-    api.set(0, 0, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+    api.set(0, 0, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
 }
 
 pub(super) fn update_sand(cell: Cell, mut api: SimAPI) {

@@ -38,11 +38,11 @@ fn props_array_covers_all_materials() {
 fn color_of_matches_expected() {
     use sim_core::{Cell, Material, color_of};
 
-    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     let c = color_of(cell);
     assert_eq!(c, [210, 185, 110, 255]);
 
-    let cell = Cell { material: Material::Empty, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Empty, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     let c = color_of(cell);
     assert_eq!(c, [0, 0, 0, 255]);
 }
@@ -51,10 +51,10 @@ fn color_of_matches_expected() {
 fn glow_of_matches_expected() {
     use sim_core::{Cell, Material, glow_of};
 
-    let cell = Cell { material: Material::Lava, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Lava, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     assert_eq!(glow_of(cell), [255, 60, 0, 160]);
 
-    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     assert_eq!(glow_of(cell), [0, 0, 0, 0]);
 }
 
@@ -81,4 +81,33 @@ fn from_id_round_trips() {
         assert_eq!(Material::from_id(id).id(), id);
     }
     assert_eq!(Material::from_id(255).id(), 0);
+}
+
+#[wasm_bindgen_test]
+fn cell_velocity_defaults_to_zero() {
+    use sim_core::{Cell, Material};
+
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
+    assert_eq!(cell.vx, 0);
+    assert_eq!(cell.vy, 0);
+}
+
+#[wasm_bindgen_test]
+fn cell_velocity_can_be_set() {
+    use sim_core::{Cell, Material};
+
+    let cell = Cell { material: Material::Sand, ra: 0, rb: 0, clock: 0, vx: -3, vy: 5 };
+    assert_eq!(cell.vx, -3);
+    assert_eq!(cell.vy, 5);
+}
+
+#[wasm_bindgen_test]
+fn cell_spread_preserves_velocity() {
+    use sim_core::{Cell, Material};
+
+    let cell = Cell { material: Material::Sand, ra: 0, rb: 0, clock: 0, vx: 2, vy: -4 };
+    let updated = Cell { rb: 10, ..cell };
+    assert_eq!(updated.vx, 2);
+    assert_eq!(updated.vy, -4);
+    assert_eq!(updated.rb, 10);
 }
