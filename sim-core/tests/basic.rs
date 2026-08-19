@@ -111,3 +111,73 @@ fn cell_spread_preserves_velocity() {
     assert_eq!(updated.vy, -4);
     assert_eq!(updated.rb, 10);
 }
+
+#[wasm_bindgen_test]
+fn velocity_props_populated() {
+    use sim_core::{Material, props};
+
+    let sand = props(Material::Sand);
+    assert_eq!(sand.gravity, 1);
+    assert_eq!(sand.terminal_velocity, 10);
+    assert_eq!(sand.slide_acceleration, 1);
+
+    let smoke = props(Material::Smoke);
+    assert_eq!(smoke.gravity, -1);
+    assert_eq!(smoke.terminal_velocity, 1);
+
+    let stone = props(Material::Stone);
+    assert_eq!(stone.gravity, 0);
+    assert_eq!(stone.terminal_velocity, 0);
+
+    let ice = props(Material::Ice);
+    assert_eq!(ice.surface_slipperiness, 0.98);
+}
+
+#[wasm_bindgen_test]
+fn gravity_direction_correct() {
+    use sim_core::{Material, props};
+
+    let falling = [Material::Sand, Material::Water, Material::Ash, Material::Lava, Material::Acid, Material::Oil, Material::Gunpowder];
+    let rising = [Material::Smoke, Material::Steam, Material::Ember];
+    let stationary = [Material::Empty, Material::Wall, Material::Stone, Material::Wood, Material::Obsidian, Material::Ice, Material::Fire];
+
+    for mat in falling {
+        assert_eq!(props(mat).gravity, 1, "{:?} should fall", mat);
+    }
+    for mat in rising {
+        assert_eq!(props(mat).gravity, -1, "{:?} should rise", mat);
+    }
+    for mat in stationary {
+        assert_eq!(props(mat).gravity, 0, "{:?} should be stationary", mat);
+    }
+}
+
+#[wasm_bindgen_test]
+fn sand_preserved_after_falling() {
+    let mut sim = Simulation::new(20, 40);
+    sim.paint_circle(10, 5, 2, 2);
+    let initial = sim.count_mat(2);
+    assert!(initial > 0);
+    sim.step(30);
+    assert_eq!(sim.count_mat(2), initial);
+}
+
+#[wasm_bindgen_test]
+fn water_preserved_after_falling() {
+    let mut sim = Simulation::new(20, 40);
+    sim.paint_circle(10, 5, 2, 3);
+    let initial = sim.count_mat(3);
+    assert!(initial > 0);
+    sim.step(30);
+    assert_eq!(sim.count_mat(3), initial);
+}
+
+#[wasm_bindgen_test]
+fn smoke_fades_over_time() {
+    let mut sim = Simulation::new(20, 20);
+    sim.paint_circle(10, 10, 3, 7);
+    let initial = sim.count_mat(7);
+    assert!(initial > 0);
+    sim.step(200);
+    assert_eq!(sim.count_mat(7), 0);
+}

@@ -225,6 +225,111 @@ impl<'a> SimAPI<'a> {
         self.try_move(dx, dy, cell)
     }
 
+    pub fn apply_gravity(&mut self) {
+        let i = idx(self.sim.width, self.x, self.y);
+        let cell = self.sim.cells[i];
+        let p = props(cell.material);
+        if p.gravity == 0 {
+            return;
+        }
+
+        // add gravity to vy, clamp to terminal velocity
+        let tv = p.terminal_velocity as i16;
+        let new_vy = (cell.vy as i16 + p.gravity as i16).clamp(-tv, tv) as i8;
+        // write directly to grid so vy accumulates even when resolve is skipped
+        self.sim.cells[i].vy = new_vy;
+    }
+
+    pub fn resolve_velocity(&mut self) {
+        let i = idx(self.sim.width, self.x, self.y);
+        let mut cell = self.sim.cells[i];
+        if cell.vx == 0 && cell.vy == 0 {
+            return;
+        }
+
+        // remember start pos
+        let orig_x = self.x;
+        let orig_y = self.y;
+        // remaining distance to travel this tick
+        let mut remaining_x = cell.vx as i32;
+        let mut remaining_y = cell.vy as i32;
+
+        // step one cell at a time along the velocity vector
+        while remaining_x != 0 || remaining_y != 0 {
+            // direction of next step: -1, 0 or 1
+            let step_x = if remaining_x != 0 { remaining_x.signum() } else { 0 };
+            let step_y = if remaining_y != 0 { remaining_y.signum() } else { 0 };
+
+            // try the diagonal, or single axis, step into empty space
+            if self.get(step_x, step_y).material == Material::Empty {
+                self.x += step_x;
+                self.y += step_y;
+                if step_x != 0 {
+                    remaining_x -= step_x;
+                }
+                if step_y != 0 {
+                    remaining_y -= step_y;
+                }
+                continue;
+            }
+
+            // blocked diagonally, check each axis
+            let v_blocked = step_y != 0 && self.get(0, step_y).material != Material::Empty;
+            let h_blocked = step_x != 0 && self.get(step_x, 0).material != Material::Empty;
+
+            // 0 velocity on whichver axis is blocked
+            if v_blocked {
+                cell.vy = 0;
+                remaining_y = 0;
+            }
+            if h_blocked {
+                cell.vx = 0;
+                remaining_x = 0;
+            }
+
+            // cornr case: diagonal blocked but both axes are open
+            // prefer vertical movement, discard horizontal
+            if !v_blocked && !h_blocked {
+                cell.vx = 0;
+                remaining_x = 0;
+            }
+
+            if remaining_x == 0 && remaining_y == 0 {
+                break;
+            }
+        }
+
+        // if cell actually moved, write cell to new position and clear the old one
+        if self.x != orig_x || self.y != orig_y {
+            // set() sets the clock, no double processing this tick
+            self.set(0, 0, cell);
+            let oi = idx(self.sim.width, orig_x, orig_y);
+            self.sim.cells[oi] = Cell::empty_with_clock(self.sim.generation.wrapping_add(1));
+        }
+
+        // apply drag/friction to horizontal velocity
+        let p = props(cell.material);
+        let below = self.get(0, 1);
+        let new_vx = if cell.vx != 0 {
+            if below.material == Material::Empty {
+                // airborne, gentle slowdown
+                (cell.vx as f32 * p.air_drag) as i8
+            } else {
+                // on a surface, combine surface slipperiness with material friction
+                let sp = props(below.material);
+                let combined = sp.surface_slipperiness * p.base_friction;
+                (cell.vx as f32 * combined) as i8
+            }
+        } else {
+            0
+        };
+
+        // write final velocity back to grid
+        let fi = idx(self.sim.width, self.x, self.y);
+        self.sim.cells[fi].vx = new_vx;
+        self.sim.cells[fi].vy = cell.vy;
+    }
+
     #[inline]
     pub fn rb(&self) -> u8 {
         self.sim.cells[idx(self.sim.width, self.x, self.y)].rb
