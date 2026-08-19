@@ -15,7 +15,7 @@ const ACID_DISSOLVES: &[(Material, u32)] = &[
     (Material::Wall, 50),
 ];
 
-pub(super) fn update_water(cell: Cell, mut api: SimAPI) {
+pub(super) fn update_water(_cell: Cell, mut api: SimAPI) {
     const BOILING_POINT: u8 = 45;
     const BOILING_RATE: u32 = 20; // higher value means slower boil
     const DISPERSION: i32 = 7;
@@ -27,29 +27,24 @@ pub(super) fn update_water(cell: Cell, mut api: SimAPI) {
         return;
     }
 
-    if api.try_move_dissolving(0, 1, cell, WATER_DISSOLVES) {
-        return;
-    }
+    api.apply_gravity();
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
 
-    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
-
-    if left_first {
-        if api.try_move_dissolving(-1, 1, cell, WATER_DISSOLVES) {
-            return;
-        }
-        if api.try_move_dissolving(1, 1, cell, WATER_DISSOLVES) {
-            return;
-        }
-    } else {
-        if api.try_move_dissolving(1, 1, cell, WATER_DISSOLVES) {
-            return;
-        }
-        if api.try_move_dissolving(-1, 1, cell, WATER_DISSOLVES) {
-            return;
+    // post-velocity dissolving, if resting on a dissolvable material, fall thru it
+    if cell.vy == 0 {
+        let below = api.get(0, 1);
+        for &(mat, rate) in WATER_DISSOLVES {
+            if below.material == mat && (rate == 1 || api.rand_u32() % rate == 0) {
+                api.set(0, 1, cell);
+                api.clear_here();
+                return;
+            }
         }
     }
 
     // Water is denser than oil - sink through it
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
     if api.try_move_into(0, 1, cell, &[Material::Oil]) {
         return;
     }
@@ -90,7 +85,7 @@ pub(super) fn update_water(cell: Cell, mut api: SimAPI) {
     }
 }
 
-pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
+pub(super) fn update_lava(_cell: Cell, mut api: SimAPI) {
     const HEAT_EMISSION: u8 = 254;
     const WOOD_IGNITE_RATE: u32 = 8;
     const EMBER_SPAWN_RATE: u32 = 500; // higher = less likely
@@ -143,23 +138,31 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
         api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
     }
 
-    // Viscous: only move 1 in VISCOSITY ticks
+    // gravity accumulates every tick
+    api.apply_gravity();
+
+    // only resolve movement 1 in VISCOSITY ticks
     if api.rand_u32() % VISCOSITY != 0 {
         return;
     }
 
-    if api.try_move_dissolving(0, 1, cell, LAVA_DISSOLVES) {
-        return;
-    }
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
 
+    //post velocity dissolving
+    if cell.vy == 0 {
+        let below = api.get(0, 1);
+        for &(mat, rate) in LAVA_DISSOLVES {
+            if below.material == mat && (rate == 1 || api.rand_u32() % rate == 0) {
+                api.set(0, 1, cell);
+                api.clear_here();
+                return;
+            }
+        }
+    }
+    // horizontal spreading
     let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
     if left_first {
-        if api.try_move_dissolving(-1, 1, cell, LAVA_DISSOLVES) {
-            return;
-        }
-        if api.try_move_dissolving(1, 1, cell, LAVA_DISSOLVES) {
-            return;
-        }
         if api.try_move_dissolving(-1, 0, cell, LAVA_DISSOLVES) {
             return;
         }
@@ -167,12 +170,6 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
             return;
         }
     } else {
-        if api.try_move_dissolving(1, 1, cell, LAVA_DISSOLVES) {
-            return;
-        }
-        if api.try_move_dissolving(-1, 1, cell, LAVA_DISSOLVES) {
-            return;
-        }
         if api.try_move_dissolving(1, 0, cell, LAVA_DISSOLVES) {
             return;
         }
@@ -182,7 +179,7 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
     }
 }
 
-pub(super) fn update_oil(cell: Cell, mut api: SimAPI) {
+pub(super) fn update_oil(_cell: Cell, mut api: SimAPI) {
     const DISPERSION: i32 = 5;
     const IGNITE_SOURCES: &[Material] = &[Material::Fire, Material::Lava, Material::Ember];
     const IGNITE_CHANCE: u32 = 12; // 1-in-N chance to catch fire each tick when adjacent
@@ -195,28 +192,12 @@ pub(super) fn update_oil(cell: Cell, mut api: SimAPI) {
         }
     }
 
-    if api.try_move(0, 1, cell) {
-        return;
-    }
-
-    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
-    if left_first {
-        if api.try_move(-1, 1, cell) {
-            return;
-        }
-        if api.try_move(1, 1, cell) {
-            return;
-        }
-    } else {
-        if api.try_move(1, 1, cell) {
-            return;
-        }
-        if api.try_move(-1, 1, cell) {
-            return;
-        }
-    }
+    api.apply_gravity();
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
 
     // Spread sideways
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
     let dirs: [i32; 2] = if left_first { [-1, 1] } else { [1, -1] };
     for dir in dirs {
         let mut max = 0;
@@ -232,15 +213,11 @@ pub(super) fn update_oil(cell: Cell, mut api: SimAPI) {
     }
 }
 
-pub(super) fn update_acid(cell: Cell, mut api: SimAPI) {
+pub(super) fn update_acid(_cell: Cell, mut api: SimAPI) {
     const VISCOSITY: u32 = 3;
+    const DISPERSION: i32 = 2;
 
-    // Viscous: move 1 in 3 ticks
-    if api.rand_u32() % VISCOSITY != 0 {
-        return;
-    }
-
-    // Probabilistically dissolve one adjacent material per tick
+    // dissolve one adjacent material per tick (runs every tick regardless of viscosity)
     for (dx, dy) in [(0i32, 1i32), (-1, 0), (1, 0), (0, -1)] {
         let target = api.get(dx, dy).material;
         if let Some(&(_, rate)) = ACID_DISSOLVES.iter().find(|&&(m, _)| m == target) {
@@ -252,28 +229,17 @@ pub(super) fn update_acid(cell: Cell, mut api: SimAPI) {
         }
     }
 
-    if api.try_move(0, 1, cell) {
+    api.apply_gravity();
+
+    if api.rand_u32() % VISCOSITY != 0 {
         return;
     }
 
-    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
-    if left_first {
-        if api.try_move(-1, 1, cell) {
-            return;
-        }
-        if api.try_move(1, 1, cell) {
-            return;
-        }
-    } else {
-        if api.try_move(1, 1, cell) {
-            return;
-        }
-        if api.try_move(-1, 1, cell) {
-            return;
-        }
-    }
+    api.resolve_velocity();
+    let cell = api.get(0, 0);
 
-    const DISPERSION: i32 = 2;
+    //horizontal spread
+    let left_first = ((api.generation() as u32) ^ api.rand_u32()) & 1 == 0;
     let dirs: [i32; 2] = if left_first { [-1, 1] } else { [1, -1] };
     for dir in dirs {
         let mut max = 0;
