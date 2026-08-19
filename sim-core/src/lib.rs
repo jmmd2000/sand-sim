@@ -87,11 +87,11 @@ impl Simulation {
         for i in 0..len {
             let x = i % w;
             let y = i / w;
-            let n  = if y > 0     { self.heat[i - w] as u32 } else { 0 };
-            let s  = if y + 1 < h { self.heat[i + w] as u32 } else { 0 };
-            let e  = if x + 1 < w { self.heat[i + 1] as u32 } else { 0 };
-            let ww = if x > 0     { self.heat[i - 1] as u32 } else { 0 };
-            let c  = self.heat[i] as u32;
+            let n = if y > 0 { self.heat[i - w] as u32 } else { 0 };
+            let s = if y + 1 < h { self.heat[i + w] as u32 } else { 0 };
+            let e = if x + 1 < w { self.heat[i + 1] as u32 } else { 0 };
+            let ww = if x > 0 { self.heat[i - 1] as u32 } else { 0 };
+            let c = self.heat[i] as u32;
             // Equal-weight 5-tap average, no decay — heat fills enclosed spaces naturally
             let diffused = ((c + n + s + e + ww) / 5) as u8;
             self.heat_next[i] = diffused.max(self.heat_next[i]);
@@ -252,7 +252,9 @@ impl<'a> SimAPI<'a> {
     pub fn get_heat(&self, dx: i32, dy: i32) -> u8 {
         let nx = self.x + dx;
         let ny = self.y + dy;
-        if !self.sim.in_bounds(nx, ny) { return 0; }
+        if !self.sim.in_bounds(nx, ny) {
+            return 0;
+        }
         self.sim.heat[idx(self.sim.width, nx, ny)]
     }
 
@@ -260,7 +262,9 @@ impl<'a> SimAPI<'a> {
     pub fn set_heat(&mut self, dx: i32, dy: i32, v: u8) {
         let nx = self.x + dx;
         let ny = self.y + dy;
-        if !self.sim.in_bounds(nx, ny) { return; }
+        if !self.sim.in_bounds(nx, ny) {
+            return;
+        }
         self.sim.heat_next[idx(self.sim.width, nx, ny)] = v;
     }
 }
@@ -287,42 +291,34 @@ impl Simulation {
         sim
     }
 
-    #[inline]
     pub fn width(&self) -> u32 {
         self.width
     }
 
-    #[inline]
     pub fn height(&self) -> u32 {
         self.height
     }
 
-    #[inline]
     pub fn pixels_ptr(&self) -> *const u8 {
         self.pixels.as_ptr()
     }
 
-    #[inline]
     pub fn pixels_len(&self) -> usize {
         self.pixels.len()
     }
 
-    #[inline]
     pub fn glow_pixels_ptr(&self) -> *const u8 {
         self.glow_pixels.as_ptr()
     }
 
-    #[inline]
     pub fn glow_pixels_len(&self) -> usize {
         self.glow_pixels.len()
     }
 
-    #[inline]
     pub fn heat_ptr(&self) -> *const u8 {
         self.heat.as_ptr()
     }
 
-    #[inline]
     pub fn heat_len(&self) -> usize {
         self.heat.len()
     }
