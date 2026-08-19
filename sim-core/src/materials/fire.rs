@@ -1,4 +1,4 @@
-use super::Material;
+use super::{Group, Material, props};
 use crate::{Cell, SimAPI};
 
 const EMBER_PASSABLE: &[Material] = &[Material::Empty, Material::Smoke, Material::Steam];
@@ -26,7 +26,7 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
     if life > MAX_LIFESPAN {
         let ra = api.rand_u32() as u8;
         let below = api.get(0, 1).material;
-        let on_solid = matches!(below, Material::Sand | Material::Stone | Material::Wall | Material::Wood | Material::Obsidian | Material::Ash | Material::Gunpowder | Material::Ice);
+        let on_solid = matches!(props(below).group, Group::Solid | Group::Powder);
         let becomes = if on_solid && api.rand_u32() % ASH_CHANCE == 0 { Material::Ash } else { Material::Empty };
         api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0 });
         return;
