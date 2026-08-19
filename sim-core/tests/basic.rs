@@ -57,3 +57,18 @@ fn glow_of_matches_expected() {
     let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
     assert_eq!(glow_of(cell), [0, 0, 0, 0]);
 }
+
+#[wasm_bindgen_test]
+fn group_check_covers_solids_and_powders() {
+    use sim_core::{Group, Material, props};
+
+    let solids = [Material::Wall, Material::Stone, Material::Wood, Material::Obsidian, Material::Ice];
+    let powders = [Material::Sand, Material::Ash, Material::Gunpowder];
+
+    for mat in solids {
+        assert_eq!(props(mat).group, Group::Solid);
+    }
+    for mat in powders {
+        assert_eq!(props(mat).group, Group::Powder);
+    }
+}
