@@ -103,51 +103,16 @@ impl Material {
 
 #[inline]
 pub fn color_of(cell: Cell) -> [u8; 4] {
-    let base: [u8; 4] = match cell.material {
-        Material::Empty => return [0, 0, 0, 255],
-        Material::Wall => [100, 95, 90, 255],
-        Material::Stone => [110, 110, 115, 255],
-        Material::Sand => [210, 185, 110, 255],
-        Material::Water => [40, 110, 210, 160],
-        Material::Wood => [120, 75, 30, 255],
-        Material::Fire => [220, 60, 10, 255],
-        Material::Smoke => [80, 80, 85, 180],
-        Material::Ash => [160, 155, 145, 255],
-        Material::Lava => [207, 70, 10, 255],
-        Material::Steam => [200, 220, 255, 160],
-        Material::Obsidian => [25, 15, 40, 255],
-        Material::Acid => [3, 160, 45, 220],
-        Material::Ember => [255, 160, 20, 255],
-        Material::Oil => [22, 20, 16, 255],
-        Material::Ice => [160, 216, 240, 255],
-        Material::Gunpowder => [60, 55, 50, 255],
-    };
+    let p = props(cell.material);
+    if cell.material == Material::Empty {
+        return p.colour;
+    }
 
     let v = cell.ra as i16 - 128;
-    let (rd, gd, bd): (i16, i16, i16) = match cell.material {
-        Material::Sand => (5, 7, 12),
-        Material::Water => (12, 7, 4),
-        Material::Stone => (7, 7, 7),
-        Material::Wall => (9, 9, 9),
-        Material::Wood => (8, 6, 4),
-        Material::Fire => (2, 4, 20),
-        Material::Smoke => (6, 6, 6),
-        Material::Ash => (10, 10, 8),
-        Material::Lava => (2, 6, 20),
-        Material::Steam => (10, 8, 6),
-        Material::Obsidian => (12, 12, 8),
-        Material::Acid => (4, 12, 7),
-        Material::Ember => (2, 5, 20),
-        Material::Oil => (8, 6, 4),
-        Material::Ice => (12, 10, 8),
-        Material::Gunpowder => (8, 8, 8),
-        _ => (7, 7, 7),
-    };
-
-    let r = (base[0] as i16 + v / rd).clamp(0, 255) as u8;
-    let g = (base[1] as i16 + v / gd).clamp(0, 255) as u8;
-    let b = (base[2] as i16 + v / bd).clamp(0, 255) as u8;
-    [r, g, b, base[3]]
+    let r = (p.colour[0] as i16 + v / p.colour_variation[0]).clamp(0, 255) as u8;
+    let g = (p.colour[1] as i16 + v / p.colour_variation[1]).clamp(0, 255) as u8;
+    let b = (p.colour[2] as i16 + v / p.colour_variation[2]).clamp(0, 255) as u8;
+    [r, g, b, p.colour[3]]
 }
 
 #[inline]

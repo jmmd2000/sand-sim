@@ -33,3 +33,16 @@ fn props_array_covers_all_materials() {
         }
     }
 }
+
+#[wasm_bindgen_test]
+fn color_of_matches_expected() {
+    use sim_core::{Cell, Material, color_of};
+
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
+    let c = color_of(cell);
+    assert_eq!(c, [210, 185, 110, 255]);
+
+    let cell = Cell { material: Material::Empty, ra: 128, rb: 0, clock: 0 };
+    let c = color_of(cell);
+    assert_eq!(c, [0, 0, 0, 255]);
+}
