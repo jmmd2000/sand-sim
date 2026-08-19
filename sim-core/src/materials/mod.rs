@@ -117,16 +117,7 @@ pub fn color_of(cell: Cell) -> [u8; 4] {
 
 #[inline]
 pub fn glow_of(cell: Cell) -> [u8; 4] {
-    match cell.material {
-        Material::Fire => {
-            let b = (cell.ra as u16 * 40 / 255) as u8;
-            [255, 120 + b, 0, 200]
-        }
-        Material::Lava => [255, 60, 0, 160],
-        Material::Acid => [0, 255, 60, 80],
-        Material::Ember => [255, 140, 0, 220],
-        _ => [0, 0, 0, 0],
-    }
+    props(cell.material).glow
 }
 
 pub fn update_cell(cell: Cell, api: SimAPI) {

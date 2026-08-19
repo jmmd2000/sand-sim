@@ -46,3 +46,14 @@ fn color_of_matches_expected() {
     let c = color_of(cell);
     assert_eq!(c, [0, 0, 0, 255]);
 }
+
+#[wasm_bindgen_test]
+fn glow_of_matches_expected() {
+    use sim_core::{Cell, Material, glow_of};
+
+    let cell = Cell { material: Material::Lava, ra: 128, rb: 0, clock: 0 };
+    assert_eq!(glow_of(cell), [255, 60, 0, 160]);
+
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
+    assert_eq!(glow_of(cell), [0, 0, 0, 0]);
+}
