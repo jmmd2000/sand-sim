@@ -72,3 +72,13 @@ fn group_check_covers_solids_and_powders() {
         assert_eq!(props(mat).group, Group::Powder);
     }
 }
+
+#[wasm_bindgen_test]
+fn from_id_round_trips() {
+    use sim_core::Material;
+
+    for id in 0..17u8 {
+        assert_eq!(Material::from_id(id).id(), id);
+    }
+    assert_eq!(Material::from_id(255).id(), 0);
+}

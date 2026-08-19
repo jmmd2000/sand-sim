@@ -74,25 +74,7 @@ pub fn props(mat: Material) -> &'static MaterialProps {
 impl Material {
     #[inline]
     pub fn from_id(id: u8) -> Self {
-        match id {
-            1 => Material::Wall,
-            2 => Material::Sand,
-            3 => Material::Water,
-            4 => Material::Stone,
-            5 => Material::Wood,
-            6 => Material::Fire,
-            7 => Material::Smoke,
-            8 => Material::Ash,
-            9 => Material::Lava,
-            10 => Material::Steam,
-            11 => Material::Obsidian,
-            12 => Material::Acid,
-            13 => Material::Ember,
-            14 => Material::Oil,
-            15 => Material::Ice,
-            16 => Material::Gunpowder,
-            _ => Material::Empty,
-        }
+        if (id as usize) < PROPS.len() { unsafe { std::mem::transmute(id) } } else { Material::Empty }
     }
 
     #[inline]
