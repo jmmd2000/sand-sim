@@ -23,7 +23,7 @@ pub(super) fn update_water(cell: Cell, mut api: SimAPI) {
     // Boil to steam when heat is high enough
     if api.heat_here() > BOILING_POINT && api.rand_u32() % BOILING_RATE == 0 {
         let ra = api.rand_u32() as u8;
-        api.set(0, 0, Cell { material: Material::Steam, ra, rb: 0, clock: 0 });
+        api.set(0, 0, Cell { material: Material::Steam, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         return;
     }
 
@@ -103,15 +103,15 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
     for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
         if api.get(dx, dy).material == Material::Water {
             let ra = api.rand_u32() as u8;
-            api.set(dx, dy, Cell { material: Material::Steam, ra, rb: 0, clock: 0 });
+            api.set(dx, dy, Cell { material: Material::Steam, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
             for (sdx, sdy) in [(-1i32, -2i32), (0, -2), (1, -2), (-1, -1), (1, -1), (-2, 0), (2, 0)] {
                 if api.get(sdx, sdy).material == Material::Empty {
                     let ra = api.rand_u32() as u8;
-                    api.set(sdx, sdy, Cell { material: Material::Steam, ra, rb: 0, clock: 0 });
+                    api.set(sdx, sdy, Cell { material: Material::Steam, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
                 }
             }
             let ra2 = api.rand_u32() as u8;
-            api.set(0, 0, Cell { material: Material::Obsidian, ra: ra2, rb: 0, clock: 0 });
+            api.set(0, 0, Cell { material: Material::Obsidian, ra: ra2, rb: 0, clock: 0, vx: 0, vy: 0 });
             return;
         }
     }
@@ -121,7 +121,7 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
         for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
             if api.get(dx, dy).material == Material::Wood {
                 let ra = api.rand_u32() as u8;
-                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
             }
         }
     }
@@ -133,14 +133,14 @@ pub(super) fn update_lava(cell: Cell, mut api: SimAPI) {
         let (dx, dy) = offsets[idx];
         if api.get(dx, dy).material == Material::Empty {
             let ra = api.rand_u32() as u8;
-            api.set(dx, dy, Cell { material: Material::Ember, ra, rb: 0, clock: 0 });
+            api.set(dx, dy, Cell { material: Material::Ember, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         }
     }
 
     // Surface lava emits smoke
     if api.rand_u32() % SMOKE_SPAWN_RATE == 0 && api.get(0, -1).material == Material::Empty {
         let ra = api.rand_u32() as u8;
-        api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0 });
+        api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
     }
 
     // Viscous: only move 1 in VISCOSITY ticks
@@ -190,7 +190,7 @@ pub(super) fn update_oil(cell: Cell, mut api: SimAPI) {
     for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
         if IGNITE_SOURCES.contains(&api.get(dx, dy).material) && api.rand_u32() % IGNITE_CHANCE == 0 {
             let ra = api.rand_u32() as u8;
-            api.set(0, 0, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+            api.set(0, 0, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
             return;
         }
     }
@@ -246,7 +246,7 @@ pub(super) fn update_acid(cell: Cell, mut api: SimAPI) {
         if let Some(&(_, rate)) = ACID_DISSOLVES.iter().find(|&&(m, _)| m == target) {
             if rate == 1 || api.rand_u32() % rate == 0 {
                 let ra = api.rand_u32() as u8;
-                api.set(dx, dy, Cell { material: Material::Empty, ra, rb: 0, clock: 0 });
+                api.set(dx, dy, Cell { material: Material::Empty, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
                 break;
             }
         }

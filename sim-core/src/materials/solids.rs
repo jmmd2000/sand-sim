@@ -8,7 +8,7 @@ pub(super) fn update_ice(_cell: Cell, mut api: SimAPI) {
 
     if api.heat_here() > MELT_HEAT && api.rand_u32() % MELT_RATE == 0 {
         let ra = api.rand_u32() as u8;
-        api.set(0, 0, Cell { material: Material::Water, ra, rb: 0, clock: 0 });
+        api.set(0, 0, Cell { material: Material::Water, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         return;
     }
 
@@ -17,7 +17,7 @@ pub(super) fn update_ice(_cell: Cell, mut api: SimAPI) {
         for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
             if api.get(dx, dy).material == Material::Water {
                 let ra = api.rand_u32() as u8;
-                api.set(dx, dy, Cell { material: Material::Ice, ra, rb: 0, clock: 0 });
+                api.set(dx, dy, Cell { material: Material::Ice, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
                 break;
             }
         }
@@ -30,6 +30,6 @@ pub(super) fn update_stone(_cell: Cell, mut api: SimAPI) {
 
     if api.heat_here() > MELT_HEAT && api.rand_u32() % MELT_RATE == 0 {
         let ra = api.rand_u32() as u8;
-        api.set(0, 0, Cell { material: Material::Lava, ra, rb: 0, clock: 0 });
+        api.set(0, 0, Cell { material: Material::Lava, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
     }
 }

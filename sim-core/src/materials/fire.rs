@@ -28,7 +28,7 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
         let below = api.get(0, 1).material;
         let on_solid = matches!(props(below).group, Group::Solid | Group::Powder);
         let becomes = if on_solid && api.rand_u32() % ASH_CHANCE == 0 { Material::Ash } else { Material::Empty };
-        api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0 });
+        api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         return;
     }
     let cell = Cell { rb: life, ..cell };
@@ -38,7 +38,7 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
         for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
             if api.get(dx, dy).material == Material::Wood {
                 let ra = api.rand_u32() as u8;
-                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
             }
         }
     }
@@ -46,7 +46,7 @@ pub(super) fn update_fire(cell: Cell, mut api: SimAPI) {
     // Spawn smoke above
     if api.rand_u32() % SMOKE_SPAWN_RATE == 0 && api.get(0, -1).material == Material::Empty {
         let ra = api.rand_u32() as u8;
-        api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0 });
+        api.set(0, -1, Cell { material: Material::Smoke, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
     }
 
     if api.rand_u32() % FALL_RATE == 0 {
@@ -87,7 +87,7 @@ pub(super) fn update_ember(cell: Cell, mut api: SimAPI) {
     if life > max_life {
         let ra = api.rand_u32() as u8;
         let becomes = if api.rand_u32() % REIGNITE_CHANCE == 0 { Material::Fire } else { Material::Smoke };
-        api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0 });
+        api.set(0, 0, Cell { material: becomes, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
         return;
     }
 
@@ -98,7 +98,7 @@ pub(super) fn update_ember(cell: Cell, mut api: SimAPI) {
         for (dx, dy) in [(0i32, -1i32), (-1, 0), (1, 0), (0, 1)] {
             if api.get(dx, dy).material == Material::Wood {
                 let ra = api.rand_u32() as u8;
-                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0 });
+                api.set(dx, dy, Cell { material: Material::Fire, ra, rb: 0, clock: 0, vx: 0, vy: 0 });
             }
         }
     }

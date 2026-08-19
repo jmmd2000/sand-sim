@@ -38,11 +38,11 @@ fn props_array_covers_all_materials() {
 fn color_of_matches_expected() {
     use sim_core::{Cell, Material, color_of};
 
-    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     let c = color_of(cell);
     assert_eq!(c, [210, 185, 110, 255]);
 
-    let cell = Cell { material: Material::Empty, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Empty, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     let c = color_of(cell);
     assert_eq!(c, [0, 0, 0, 255]);
 }
@@ -51,10 +51,10 @@ fn color_of_matches_expected() {
 fn glow_of_matches_expected() {
     use sim_core::{Cell, Material, glow_of};
 
-    let cell = Cell { material: Material::Lava, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Lava, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     assert_eq!(glow_of(cell), [255, 60, 0, 160]);
 
-    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0 };
+    let cell = Cell { material: Material::Sand, ra: 128, rb: 0, clock: 0, vx: 0, vy: 0 };
     assert_eq!(glow_of(cell), [0, 0, 0, 0]);
 }
 
